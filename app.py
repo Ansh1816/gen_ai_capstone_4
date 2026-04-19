@@ -1202,11 +1202,23 @@ with tab_agent:
                         "sms": ag_sms, "hipert": ag_hipert, "diab": ag_diab,
                         "schol": ag_schol, "hcap": ag_hcap, "prev_miss": ag_prev,
                     }
-                    # Run quick prediction for the report
+                    # Run quick prediction for the report.
+                    # predict_noshow is a LangChain @tool — pydantic enforces
+                    # string types for the yes/no flags, so cast booleans
+                    # explicitly before invoking.
+                    def _yn(b: bool) -> str:
+                        return "yes" if b else "no"
+
                     pargs = {
-                        "age": ag_age, "gender": ag_gender, "awaiting_days": ag_awaiting,
-                        "sms_sent": ag_sms, "hypertension": ag_hipert, "diabetes": ag_diab,
-                        "scholarship": ag_schol, "disability_level": ag_hcap, "previous_no_shows": ag_prev
+                        "age": int(ag_age),
+                        "gender": ag_gender,
+                        "awaiting_days": int(ag_awaiting),
+                        "sms_sent": _yn(ag_sms),
+                        "hypertension": _yn(ag_hipert),
+                        "diabetes": _yn(ag_diab),
+                        "scholarship": _yn(ag_schol),
+                        "disability_level": int(ag_hcap),
+                        "previous_no_shows": int(ag_prev),
                     }
                     assessment = predict_noshow.invoke(pargs)
                     
