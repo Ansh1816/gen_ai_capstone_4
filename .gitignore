@@ -13,8 +13,12 @@ venv/
 env/
 .env
 
-# ChromaDB
-chroma_db/
+# ChromaDB — vector store is committed so the hosted app ships with an
+# already-populated knowledge base (otherwise the RAG tool returns empty
+# results in production and the agent hallucinates policies).
+# If you change the guideline markdown files, re-run build_vectorstore.py
+# and commit the refreshed chroma_db/ directory.
+# chroma_db/
 
 # macOS
 .DS_Store
