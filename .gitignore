@@ -31,3 +31,4 @@ KaggleV2-May-2016.csv
 
 # Jupyter
 .ipynb_checkpoints/
+report/*.zip

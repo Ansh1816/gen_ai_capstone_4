@@ -1,65 +1,79 @@
-# Project Report (LaTeX)
+# End-Sem Project Report
 
-IEEE-conference-style end-semester report for the **Clinical Appointment
-No-Show Prediction and Agentic Care Coordination** capstone.
+Word/Docs-style technical report, restructured to match a top-graded reference
+report. Single column, navy-blue section headers, navy-blue table headers,
+sans-serif body, 14 numbered sections, no academic bibliography.
 
-## Build options
+## Build on Overleaf (recommended, 2 min)
 
-### Option A — Overleaf (recommended, no local TeX install)
+1. Open https://www.overleaf.com/ and sign in.
+2. **New Project → Upload Project** → drop `report.tex`.
+3. Click **Recompile**. First build takes ~10 seconds.
+4. **Download PDF**.
 
-1. Go to https://www.overleaf.com/ and sign in.
-2. Click **New Project → Upload Project**.
-3. Upload `report.tex`.
-4. Overleaf will auto-detect it as a LaTeX project. Click **Recompile**.
-5. Download the produced PDF.
+All packages used (`helvet`, `xcolor`, `colortbl`, `titlesec`, `tabularx`,
+`longtable`, `hyperref`, `tikz`, `listings`, `graphicx`) ship with Overleaf
+by default — no extra setup.
 
-Overleaf ships `IEEEtran`, `tikz`, `booktabs`, `tabularx`, `listings`, and
-`hyperref` out of the box — no extra packages to install.
-
-### Option B — Local compile with TeX Live
+## Local compile
 
 ```bash
 cd report
 pdflatex report.tex
-pdflatex report.tex   # run twice so references resolve
+pdflatex report.tex    # run twice so cross-references resolve
 ```
 
-The report compiles cleanly with a stock TeX Live install. If `pdflatex`
-reports missing packages, install the `texlive-publishers` bundle (which
-provides `IEEEtran`) and `texlive-pictures` (for TikZ).
+## What's inside (14 sections)
 
-### Option C — Docker
+1. Abstract
+2. Dataset Summary
+3. Data Cleaning and Preprocessing
+4. Exploratory Data Analysis
+5. Model Selection and Training
+6. Model Evaluation
+7. System Architecture (Technology Stack + Module Structure)
+8. Agentic Workflow Explanation (AgentState schema, 5-step pipeline, ReAct chat)
+9. RAG Pipeline Explanation (incl. the **deployment hazard finding**)
+10. Guardrail Architecture
+11. Deployment and User Interface (all 3 tabs documented)
+12. Practical Implications
+13. Conclusion
+14. **Team Contributions** — two detailed paragraphs, Praanshu's work itemised
 
-```bash
-docker run --rm -v "$PWD":/doc -w /doc \
-  texlive/texlive:latest pdflatex report.tex
-```
+## Screenshots to add before final submission
 
-## What's inside
+The report has **six figure placeholders** (italic `[Figure placeholder: …]`
+boxes). Before submitting, capture these PNGs and drop them into `report/`.
+Then delete the placeholder paragraph and uncomment the `\includegraphics`
+line directly above it.
 
-- Title, authors, affiliations (Newton School of Technology)
-- Abstract + IEEE keywords
-- 10 sections: Introduction → Related Work → System Architecture → Milestone 1
-  (ML) → Milestone 2 (Agentic) → RAG → Implementation & Deployment →
-  Qualitative Case Study → Ethical Safeguards → Results & Discussion →
-  Limitations → Conclusion
-- Two TikZ diagrams (system architecture + 5-step LangGraph workflow)
-- Tables for the feature set and ML metrics
-- Code listings (state TypedDict, hardened system prompt, cumulative
-  prior-miss feature)
-- Explicit **Team Contributions** section naming both authors
-- 12 references
+| Placeholder | Filename expected | How to capture |
+|---|---|---|
+| §5.3 Feature Importance bar chart | `fig_feature_importance.png` | Run `model_brain.py` locally and add a matplotlib `plt.barh` of `tree.feature_importances_` (or grab from `genaicapstone.py` line 171-177). |
+| §6.2 Confusion Matrix heatmap | `fig_confusion_matrix.png` | Add `metrics.confusion_matrix(y_test, y_pred)` to `model_brain.py` and plot with seaborn. |
+| §7 System Architecture diagram | `fig_architecture.png` | Export the Mermaid diagram from the project README via https://mermaid.live/ (copy Mermaid, paste, export PNG). |
+| §8.3 Chat screenshot | `fig_chat.png` | Open the live app → AI Care Coordinator → type a question → screenshot. |
+| §11.1 Single Patient Analysis tab | `fig_single_patient.png` | Live app → Single Patient Analysis tab → fill a patient → Analyse → screenshot. |
+| §11.2 Batch Analysis tab | `fig_batch.png` | Live app → Batch Analysis tab after uploading a CSV → screenshot of KPIs + chart. |
+| §11.3 Structured Workflow card | `fig_workflow.png` | Live app → AI Care Coordinator → Run Full Care Workflow → expand Step 3 → screenshot. |
 
-## Screenshot placeholder
-
-Section IX (Qualitative Case Study) references `Fig. 3 — structured workflow
-output, live on Streamlit Community Cloud` as a placeholder. Before final
-submission, take a screenshot of the deployed app's 5-step workflow card
-(with Step 3 expanded, showing the source chips) and replace the placeholder
-`\fbox{\parbox{...}}` with:
+To insert a screenshot, find the placeholder in `report.tex` that looks like:
 
 ```latex
-\includegraphics[width=\columnwidth]{workflow_screenshot.png}
+\textit{\textbf{Figure placeholder:} insert the system architecture
+diagram here as \texttt{fig\_architecture.png}.}
 ```
 
-Place `workflow_screenshot.png` in the same `report/` folder.
+and replace the whole paragraph with:
+
+```latex
+\begin{center}
+  \includegraphics[width=0.95\textwidth]{fig_architecture.png}
+\end{center}
+```
+
+## Reference style source
+
+The structure and visual style follow a previously top-graded end-sem
+report on a different topic (credit-risk scoring). All content and
+technical details are specific to this project.

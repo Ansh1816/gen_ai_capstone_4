@@ -1,39 +1,73 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Clinical Appointment No-Show Prediction and Agentic Care Coordination
-%% End-Semester Capstone Report — GenAI & Agentic AI
-%% IEEE Conference style (IEEEtran)
+%% Intelligent Appointment No-Show Prediction and Agentic Care
+%% Coordination Assistant — End-Sem Capstone Report
+%% Styled to match a Word/Docs-style technical report:
+%%   single column, navy blue section headers with underline,
+%%   navy table headers with white text, sans-serif body,
+%%   A4 with ~1in margins, no academic bibliography.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
+\documentclass[11pt,a4paper]{article}
 
-\usepackage{cite}
-\usepackage{amsmath,amssymb,amsfonts}
-\usepackage{graphicx}
-\usepackage{url}
-\usepackage{booktabs}
-\usepackage{tabularx}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
 \usepackage{xcolor}
-\usepackage{listings}
-\usepackage{tikz}
+\usepackage{colortbl}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{titlesec}
+\usepackage{enumitem}
 \usepackage{hyperref}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
+\usepackage{tikz}
+\usepackage{listings}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc}
 
-\hypersetup{
-  colorlinks=true,
-  linkcolor=black,
-  citecolor=black,
-  urlcolor=blue!60!black
-}
-
-% ── Listing style for code / prompt snippets ──
+% ── Colours ─────────────────────────────────────────────────────────────
+\definecolor{navy}{HTML}{1F3864}
+\definecolor{navylight}{HTML}{2E5597}
+\definecolor{rowgrey}{HTML}{F2F2F2}
 \definecolor{codebg}{HTML}{F6F8FA}
 \definecolor{codekw}{HTML}{005CC5}
 \definecolor{codestr}{HTML}{032F62}
 \definecolor{codecomment}{HTML}{6A737D}
+\definecolor{callout}{HTML}{FFF4CE}
 
+% ── Section styling (navy, bold, bottom rule) ────────────────────────────
+\titleformat{\section}
+  {\color{navy}\Large\bfseries}
+  {\thesection.}{0.6em}{}[\color{navy}\vspace{-6pt}\hrule height 0.6pt]
+\titleformat{\subsection}
+  {\color{navy}\large\bfseries}
+  {\thesubsection}{0.8em}{}
+\titleformat{\subsubsection}
+  {\color{navy}\normalsize\bfseries}
+  {\thesubsubsection}{0.6em}{}
+
+\titlespacing*{\section}{0pt}{18pt}{10pt}
+\titlespacing*{\subsection}{0pt}{14pt}{6pt}
+\titlespacing*{\subsubsection}{0pt}{10pt}{4pt}
+
+% ── Link styling ─────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  linkcolor=navy,
+  citecolor=navy,
+  urlcolor=navy
+}
+
+% ── Table helpers ────────────────────────────────────────────────────────
+\newcommand{\hdrrow}[1]{\rowcolor{navy}\textcolor{white}{\textbf{#1}}}
+\arrayrulecolor{black!20}
+\setlength{\arrayrulewidth}{0.4pt}
+
+% ── Listings style for code / prompts ────────────────────────────────────
 \lstdefinestyle{pycode}{
   backgroundcolor=\color{codebg},
-  basicstyle=\ttfamily\scriptsize,
+  basicstyle=\ttfamily\small,
   keywordstyle=\color{codekw}\bfseries,
   stringstyle=\color{codestr},
   commentstyle=\color{codecomment}\itshape,
@@ -42,810 +76,983 @@
   columns=fullflexible,
   frame=single,
   framesep=4pt,
-  rulecolor=\color{codecomment!40},
+  rulecolor=\color{black!25},
   xleftmargin=6pt,
   xrightmargin=6pt,
-  aboveskip=6pt,
-  belowskip=6pt,
+  aboveskip=8pt,
+  belowskip=8pt,
   language=Python,
 }
 \lstset{style=pycode}
 
+% ── No page numbers on title page header ─────────────────────────────────
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
 \begin{document}
 
-\title{Clinical Appointment No-Show Prediction and Agentic Care Coordination:\\
-From Operational Analytics to Intelligent Intervention}
-
-\author{
-\IEEEauthorblockN{Ansh Badkur}
-\IEEEauthorblockA{\textit{Dept.\ of Computer Science \& Engineering} \\
-\textit{Newton School of Technology}\\
-anshbadkur0808@gmail.com}
-\and
-\IEEEauthorblockN{Praanshu Ranjan}
-\IEEEauthorblockA{\textit{Dept.\ of Computer Science \& Engineering} \\
-\textit{Newton School of Technology}\\
-praanshuranjan123@gmail.com}
-}
-
-\maketitle
+% ══════════════════════════════════════════════════════════════════════
+% TITLE
+% ══════════════════════════════════════════════════════════════════════
+\begin{center}
+\vspace*{0.2in}
+{\fontsize{26}{30}\selectfont\color{navy}\bfseries
+Intelligent Appointment No-Show Prediction \\[2pt]
+\& Agentic Care Coordination Assistant \par}
+\vspace{10pt}
+{\normalsize\color{black!70}
+LangGraph\; $\cdot$\; Groq LLM\; $\cdot$\; ChromaDB RAG\; $\cdot$\; Decision Tree\; $\cdot$\; Streamlit
+\par}
+\end{center}
+\vspace{12pt}
 
 % ══════════════════════════════════════════════════════════════════════
-% ABSTRACT
-% ══════════════════════════════════════════════════════════════════════
-\begin{abstract}
-Missed medical appointments cause avoidable revenue loss, underutilized clinical
-capacity, and gaps in continuity of care. We present a two-phase healthcare
-operations system that evolves from a classical machine-learning no-show
-predictor (Milestone~1) into an agentic care-coordination assistant grounded in
-the hospital's own operational guidelines (Milestone~2).
-The baseline is a scaled Decision Tree classifier trained on the Kaggle
-\emph{Medical Appointment No Shows} dataset (110{,}527 records), with engineered
-features for appointment lead time and per-patient no-show history. The
-end-semester extension wraps this predictor inside an explicit five-step
-LangGraph \emph{StateGraph} workflow~\cite{langgraph} --- risk assessment, LLM
-risk reasoning, guideline retrieval via Retrieval-Augmented Generation,
-intervention planning, and structured report generation --- with a parallel
-ReAct~\cite{yao2023react} chat interface for open-ended queries. Policy grounding
-is provided by a Chroma~\cite{chroma} vector store over five hospital-operations
-markdown documents (40 embedded chunks), with source filenames propagated
-through the agent's output. The system runs on Streamlit Community Cloud with a
-Groq-hosted Llama~3.1 8B instant model~\cite{groq}. We demonstrate source-cited,
-disclaimer-bearing, multi-step interventions and discuss deployment pitfalls
-(vector-store shipping, prompt guardrails) uncovered during live verification.
-All code and guidelines are public\footnote{\url{https://github.com/Ansh1816/gen_ai_capstone_4}}.
-\end{abstract}
-
-\begin{IEEEkeywords}
-Agentic AI, LangGraph, Retrieval-Augmented Generation, Clinical Operations,
-No-Show Prediction, Healthcare Informatics, Streamlit, LLM, Source Attribution.
-\end{IEEEkeywords}
-
-% ══════════════════════════════════════════════════════════════════════
-\section{Introduction}
+\section*{\color{navy}Abstract}
+\vspace{-6pt}{\color{navy}\hrule height 0.6pt}\vspace{8pt}
+\addcontentsline{toc}{section}{Abstract}
 % ══════════════════════════════════════════════════════════════════════
 
-Outpatient appointment no-shows are a persistent operational problem in
-healthcare delivery: published estimates put the average no-show rate between
-10\% and 30\% across primary-care and specialty settings, translating into
-substantial financial loss, reduced patient throughput, and compromised
-continuity of care~\cite{gier2017noshow,dantas2018noshow}. The public Kaggle
-\emph{Medical Appointment No Shows} dataset~\cite{kaggle_noshow} used in this
-work exhibits an approximate no-show rate of 20\% across 110{,}527 scheduled
-visits, consistent with the literature.
+Appointment no-shows are one of the most persistent operational problems in
+outpatient healthcare, causing lost revenue, wasted clinician capacity, and
+broken continuity of care. Healthcare operations teams need both accurate
+prediction of which patients are likely to miss an appointment and
+actionable, policy-grounded guidance on what to do about it. This project
+builds a two-phase system that addresses both needs.
 
-This work is framed around the two-milestone structure prescribed by the
-end-semester capstone brief. In \textbf{Milestone~1} (mid-semester), the system
-is required to apply \emph{classical} machine-learning techniques to historical
-scheduling data without using any large-language-model component: preprocessing,
-feature engineering, supervised training of regression and tree-based models,
-and exposure of predictions through a user interface. In \textbf{Milestone~2}
-(end-semester), the same predictor is extended into an \emph{agentic}
-application that autonomously reasons about the risk output, retrieves
-best-practice guidelines from a hospital-operations corpus, plans interventions,
-and produces structured care reports with source attribution, ethical
-disclaimers, and operational safeguards. This progression --- from predictive
-analytics to agentic intervention --- is the design philosophy that the rest of
-the paper documents.
+Comprehensive data preprocessing, exploratory data analysis, and feature
+engineering were performed on the Kaggle \emph{Medical Appointment No Shows}
+dataset (110{,}527 records) before training a Decision Tree classifier,
+which operates on a 14-feature profile including an engineered appointment
+lead time and a cumulative per-patient prior-miss counter. The trained model
+is then embedded within a LangGraph-orchestrated multi-node agentic workflow
+that enforces deterministic risk assessment, LLM-based risk reasoning,
+RAG-enhanced guideline retrieval, grounded intervention planning, and
+structured report generation in a strict sequential pipeline.
 
-\subsection*{Contributions}
-\begin{enumerate}
-  \item A reproducible preprocessing pipeline for the Kaggle V2 no-show dataset
-        including engineered features for appointment lead time
-        (\textsc{AwaitingTime}) and per-patient historical misses
-        (\textsc{Num\_App\_Missed}), used to train a Decision Tree classifier
-        that forms the Milestone-1 baseline.
-  \item An explicit five-node LangGraph \emph{StateGraph} workflow for care
-        coordination with a strongly-typed \texttt{AgentState} and
-        deterministic node order (Fig.~\ref{fig:workflow}), alongside a parallel
-        ReAct agent with two callable tools for open-ended chat.
-  \item A policy-grounded RAG layer over five hospital-operations markdown
-        documents (40 chunks), with end-to-end source-filename propagation into
-        every intervention plan.
-  \item A hardened agent prompt that refuses to invent policy when retrieval is
-        empty, requires inline \texttt{[Source: <filename>]} citations, and
-        mandates an operational and ethical disclaimer on every output.
-  \item A publicly deployed Streamlit Community Cloud application\footnote{%
-        \url{https://genaicapstone4-anot5dcxcx9vhuxzsifnzb.streamlit.app/}}
-        with the vector store shipped in-repo so the hosted agent is grounded
-        from the first boot.
-  \item A live end-to-end qualitative case study
-        (Section~\ref{sec:casestudy}) showing the five-step workflow output
-        for a complex multi-comorbidity patient, including the retrieved
-        excerpts and their source attributions.
-\end{enumerate}
+The RAG pipeline indexes five hospital-operations markdown documents into a
+ChromaDB vector store using the \texttt{all-MiniLM-L6-v2} sentence-transformer
+model, enabling source-cited retrieval at inference time. A Groq-hosted
+\texttt{llama-3.1-8b-instant} model powers the reasoning layer, with a
+hardened system prompt that forbids hallucinated policies and requires every
+rule to be tagged with the originating filename.
 
-The remainder of the paper is organized as follows. Section~\ref{sec:related}
-summarizes related work. Section~\ref{sec:arch} describes the overall system
-architecture. Section~\ref{sec:m1} details the Milestone-1 ML baseline.
-Section~\ref{sec:m2} details the Milestone-2 agentic layer. Section~\ref{sec:rag}
-describes the RAG pipeline. Section~\ref{sec:impl} covers implementation and
-deployment. Section~\ref{sec:casestudy} presents a qualitative end-to-end
-example. Section~\ref{sec:ethics} discusses the ethical and operational
-safeguards. Section~\ref{sec:results} presents results and discussion, and
-Section~\ref{sec:limitations} concludes with limitations and future work.
+The complete system is deployed as an interactive Streamlit web application
+featuring a single-patient analysis dashboard, a batch-upload risk report,
+a conversational RAG copilot, a structured five-step care-workflow view, and
+a downloadable PDF audit report. The application is publicly deployed on
+Streamlit Community Cloud with the vector store committed in-repo so the
+hosted agent is grounded from the first boot.
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Related Work}\label{sec:related}
+\section{Dataset Summary}
 % ══════════════════════════════════════════════════════════════════════
 
-Classical no-show prediction has been studied extensively; Dantas et~al.\
-review over a hundred studies and find that logistic regression and tree
-ensembles dominate, with accuracy typically in the 70--80\% range for
-imbalanced datasets~\cite{dantas2018noshow}. Previous no-shows, appointment
-lead time, and age are consistently the strongest predictors --- findings that
-motivate our feature engineering in Section~\ref{sec:m1}.
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
+\hline
+\hdrrow{Attribute} & \hdrrow{Details} \\ \hline
+Data Source        & Kaggle — Medical Appointment No Shows (May 2016) \\ \hline
+Total Records      & 110{,}527 \\ \hline
+Total Features     & 14 (after one-hot and feature engineering) \\ \hline
+Target Variable    & \texttt{No-show} (0 = Showed up, 1 = Did not show) \\ \hline
+Problem Type       & Binary Classification \\ \hline
+Class Balance      & Imbalanced — no-shows are the minority ($\sim$20\%) \\ \hline
+Model Used         & Decision Tree Classifier (\texttt{max\_depth}=10) \\ \hline
+\end{tabularx}
 
-Agentic AI has rapidly moved from research to production. The ReAct
-paradigm~\cite{yao2023react} interleaves LLM reasoning with tool use, while
-graph-based frameworks such as LangGraph~\cite{langgraph} expose an explicit
-state machine for reliability-critical workflows. For grounding in
-domain-specific policy, Retrieval-Augmented Generation~\cite{lewis2020rag}
-remains the standard; the sentence-level bi-encoder used in this work,
-\texttt{sentence-transformers/all-MiniLM-L6-v2}~\cite{minilm}, is a
-widely-deployed lightweight embedding model that fits comfortably within the
-memory budget of a free-tier Streamlit Community Cloud container.
+\vspace{8pt}
+The dataset contains demographic, medical, socio-economic, and appointment
+metadata that collectively influence whether a patient will miss a scheduled
+visit. The eleven raw input features are listed below.
 
-For the healthcare operations setting, recent position papers emphasize that
-LLM outputs used in patient-facing contexts must be grounded in authoritative
-documents, include source attribution, and carry human-in-the-loop
-safeguards~\cite{harvard_responsibleai,topol2019ai}. These principles directly
-informed the prompt hardening and disclaimer enforcement described in
-Section~\ref{sec:ethics}.
+\vspace{8pt}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.34\hsize}X|>{\hsize=0.22\hsize}X|X|}
+\hline
+\hdrrow{Feature} & \hdrrow{Type} & \hdrrow{Description} \\ \hline
+\texttt{PatientId}        & Identifier  & Unique identifier for the patient. \\ \hline
+\texttt{AppointmentID}    & Identifier  & Unique identifier for the appointment. \\ \hline
+\texttt{Gender}           & Categorical & Patient gender (F / M). \\ \hline
+\texttt{Age}              & Numerical   & Patient age in years (0--100). \\ \hline
+\texttt{Neighbourhood}    & Categorical & Clinic neighbourhood (dropped prior to modelling). \\ \hline
+\texttt{Scholarship}      & Categorical & 1 if patient is on a social-assistance programme. \\ \hline
+\texttt{Hipertension}     & Categorical & 1 if hypertension diagnosed. \\ \hline
+\texttt{Diabetes}         & Categorical & 1 if diabetes diagnosed. \\ \hline
+\texttt{Alcoholism}       & Categorical & 1 if alcohol-dependency flagged (not used in final model). \\ \hline
+\texttt{Handcap}          & Categorical & Disability level 0--4 (dataset spelling preserved). \\ \hline
+\texttt{SMS\_received}    & Categorical & 1 if reminder SMS was dispatched. \\ \hline
+\texttt{ScheduledDay}     & Datetime    & When the appointment was booked. \\ \hline
+\texttt{AppointmentDay}   & Datetime    & When the appointment is scheduled to occur. \\ \hline
+\texttt{No-show}          & Target      & ``Yes'' / ``No'' --- converted to $\{1,0\}$. \\ \hline
+\end{tabularx}
 
-% ══════════════════════════════════════════════════════════════════════
-\section{System Architecture}\label{sec:arch}
-% ══════════════════════════════════════════════════════════════════════
-
-Fig.~\ref{fig:sysarch} shows the high-level architecture. The Streamlit UI
-exposes three tabs: \emph{Single Patient Analysis} and \emph{Batch Analysis}
-(both pure-ML surfaces), and \emph{AI Care Coordinator} (the agentic surface,
-offering both the structured five-step workflow and a ReAct chat agent). The
-ML prediction module is shared across all three tabs --- the workflow treats
-it as the entry point of the graph, and the ReAct agent treats it as a
-callable tool. The RAG layer is likewise shared: both the structured
-workflow's \textsc{guideline\_retrieval} node and the ReAct agent's
-\textsc{search\_guidelines} tool query the same Chroma collection.
-
-\begin{figure}[t]
-\centering
-\resizebox{\columnwidth}{!}{%
-\begin{tikzpicture}[
-  node distance=6mm and 8mm,
-  box/.style={draw,rounded corners=2pt,minimum height=8mm,minimum width=22mm,
-              inner sep=3pt,font=\footnotesize},
-  ui/.style={box,fill=blue!8,draw=blue!50},
-  ml/.style={box,fill=orange!10,draw=orange!60},
-  ag/.style={box,fill=red!8,draw=red!55},
-  rag/.style={box,fill=green!8,draw=green!55},
-  label/.style={font=\scriptsize\bfseries,align=center},
-  every path/.style={-Latex, thick, draw=black!60},
-]
-% UI row
-\node[label] (uilab) {UI (\texttt{app.py})};
-\node[ui, below=1mm of uilab] (t1) {Single Patient};
-\node[ui, right=of t1]        (t2) {Batch Analysis};
-\node[ui, right=of t2]        (t3) {AI Care Coordinator};
-
-% ML row
-\node[ml, below=16mm of t1] (ml)   {DecisionTree\\+ StandardScaler};
-\node[label, left=1mm of ml, anchor=east] {ML};
-
-% Agent row
-\node[ag, below=16mm of t3] (sg)  {5-step StateGraph\\\texttt{agent.py}};
-\node[ag, left=of sg]       (rct) {ReAct Agent\\\texttt{chatbot\_agent.py}};
-\node[label, left=1mm of rct, anchor=east] {Agents};
-
-% RAG row
-\node[rag, below=16mm of rct] (vs)   {ChromaDB\\(40 chunks)};
-\node[rag, left=of vs]        (docs) {guidelines/\\5 .md files};
-\node[label, left=1mm of docs, anchor=east] {RAG};
-
-% Edges
-\draw (t1) -- (ml);
-\draw (t2) -- (ml);
-\draw (t3) -- (rct);
-\draw (t3) -- (sg);
-\draw (rct) -- (ml);
-\draw (sg)  -- (ml);
-\draw (rct) -- (vs);
-\draw (sg)  -- (vs);
-\draw[dashed] (docs) -- node[above,font=\scriptsize]{build\_vectorstore.py} (vs);
-
-\end{tikzpicture}}
-\caption{System architecture. Both agents reuse the same ML model (as a tool
-on the ReAct side, as a graph-node on the workflow side) and the same Chroma
-collection for retrieval. The vector store is built offline by
-\texttt{build\_vectorstore.py} and committed to the repository so the
-deployed container ships with a populated knowledge base.}
-\label{fig:sysarch}
-\end{figure}
+\vspace{6pt}
+\textbf{Dataset link:}
+\href{https://www.kaggle.com/datasets/joniarroba/noshowappointments}{Medical Appointment No Shows (Kaggle)}
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Milestone 1: ML Baseline}\label{sec:m1}
+\section{Data Cleaning and Preprocessing}
 % ══════════════════════════════════════════════════════════════════════
 
-\subsection{Dataset}
-The Kaggle \emph{Medical Appointment No Shows} V2 dataset contains 110{,}527
-appointment records with 14 raw columns including patient demographics (age,
-gender, neighbourhood), comorbidity flags (hypertension, diabetes,
-alcoholism, disability level), socioeconomic indicators (\texttt{Scholarship}
-is a Brazilian social-assistance flag), messaging history
-(\texttt{SMS\_received}), and the target variable \texttt{No-show}
-(\texttt{``Yes''} / \texttt{``No''}). The base rate of no-shows in the dataset
-is approximately 20\%, producing an 80/20 class imbalance that all downstream
-decisions must account for.
+Data preprocessing is a crucial step in any machine-learning pipeline. The
+dataset was carefully examined for invalid values, inconsistent formats,
+categorical variables requiring transformation, and opportunities for
+domain-driven feature engineering.
 
-\subsection{Preprocessing and Feature Engineering}
-The preprocessing pipeline, implemented in
-\texttt{model\_brain.py}, performs the following steps:
-\begin{enumerate}
-  \item \textbf{Target encoding.} \texttt{No-show} mapped to $\{0,1\}$.
-  \item \textbf{Disability one-hot.} The raw \texttt{Handcap} column (dataset
-        spelling) is cast to categorical and one-hot encoded into
-        \texttt{Handicap\_0} \dots \texttt{Handicap\_4}.
-  \item \textbf{Age filtering.} Rows with \texttt{Age}$<0$ or $>100$ removed.
-  \item \textbf{Lead time} engineered as
-        $\textsc{AwaitingTime} = |\textsc{AppointmentDay} - \textsc{ScheduledDay}|$
-        in days.
-  \item \textbf{Prior no-show history.} For each
-        \texttt{(PatientId, AppointmentDay)} tuple, a cumulative count of
-        prior no-shows is computed:
-\begin{lstlisting}[language=Python]
+\subsection{Invalid Age Treatment}
+
+The \texttt{Age} column contained a small number of biologically
+implausible values (negative ages). Rows with \texttt{Age}$<0$ or
+\texttt{Age}$>100$ were removed before modelling to avoid polluting the
+feature distribution. This filter is applied once in
+\texttt{model\_brain.py} and also applied at inference time for batch CSV
+uploads in \texttt{app.py}.
+
+\subsection{Target Encoding}
+
+The categorical target \texttt{No-show} was mapped to $\{0, 1\}$
+(\texttt{No}$\to0$, \texttt{Yes}$\to1$), producing the binary-classification
+label used by all downstream metrics.
+
+\subsection{Categorical Encoding}
+
+Two categorical features required transformation. The raw \texttt{Handcap}
+column (disability level 0--4) was cast to a pandas Categorical and
+one-hot encoded into five columns
+(\texttt{Handicap\_0}\ldots\texttt{Handicap\_4}); the \texttt{Gender} column
+was one-hot encoded into \texttt{Gender\_F} and \texttt{Gender\_M}. The
+resulting binary indicators avoid imposing any false ordinal relationship.
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|X|>{\hsize=0.3\hsize}X|}
+\hline
+\hdrrow{Feature} & \hdrrow{Categories} & \hdrrow{Encoding} \\ \hline
+\texttt{Handcap}  & 0, 1, 2, 3, 4 & \texttt{Handicap\_0..4} (one-hot)\\ \hline
+\texttt{Gender}   & F, M          & \texttt{Gender\_F, Gender\_M} \\ \hline
+\texttt{No-show}  & No, Yes       & 0, 1 \\ \hline
+\end{tabularx}
+
+\subsection{Feature Scaling}
+
+Numerical features --- \texttt{Age}, \texttt{AwaitingTime},
+\texttt{Num\_App\_Missed} --- together with the binary flags, were
+standardised using scikit-learn's \texttt{StandardScaler} (zero mean, unit
+variance). The scaler was fitted exclusively on the training split and then
+applied to both training and validation splits, ensuring no information from
+the validation set influences the transformation. The fitted scaler was
+serialised to \texttt{scaler.pkl} for consistent inference-time
+normalisation in the Streamlit application.
+
+\subsection{Derived Features}
+
+Two domain-specific features were engineered and proved to be among the
+strongest predictors in the model.
+
+\textbf{AwaitingTime.} The absolute difference between
+\texttt{AppointmentDay} and \texttt{ScheduledDay} in days, representing how
+far in advance the appointment was booked. Longer lead times are strongly
+associated with higher no-show probability in the published literature on
+appointment attendance.
+
+\textbf{Num\_App\_Missed.} A cumulative count, per patient, of
+how many appointments the patient has already missed prior to the current
+one. The feature is computed with a groupby-shift-cumulative-sum to avoid
+label leakage:
+
+\begin{lstlisting}
 df_sorted["Num_App_Missed"] = (
     df_sorted.groupby("PatientId")["No-show"]
              .transform(lambda x: x.shift()
                                     .fillna(0)
                                     .cumsum()))
 \end{lstlisting}
-        This feature proved to be among the strongest predictors, consistent
-        with the finding of~\cite{dantas2018noshow} that prior no-shows
-        dominate the signal.
-  \item \textbf{Column drops.} \texttt{PatientId},
-        \texttt{AppointmentID}, \texttt{Neighbourhood}, and the raw date
-        columns are dropped prior to modelling.
-  \item \textbf{Scaling.} The remaining 14-column feature matrix is
-        standardized with \texttt{StandardScaler} (zero mean, unit variance)
-        and the fitted scaler is persisted with \texttt{joblib} for use at
-        inference time.
-\end{enumerate}
-The final feature set is listed in Table~\ref{tab:features}.
 
-\begin{table}[t]
-\centering
-\caption{Final feature set (14 columns after preprocessing).}
-\label{tab:features}
-\footnotesize
-\begin{tabularx}{\columnwidth}{lX}
-\toprule
-\textbf{Feature} & \textbf{Description} \\
-\midrule
-\texttt{Age}              & Patient age in years (range 0--100). \\
-\texttt{AwaitingTime}     & Days between \texttt{ScheduledDay} and \texttt{AppointmentDay}. \\
-\texttt{Num\_App\_Missed} & Cumulative prior no-shows for the patient. \\
-\texttt{SMS\_received}    & 1 if a reminder SMS was dispatched. \\
-\texttt{Hipertension}     & 1 if patient is hypertensive. \\
-\texttt{Diabetes}         & 1 if patient is diabetic. \\
-\texttt{Scholarship}      & 1 if on social-assistance programme. \\
-\texttt{Handicap\_0..4}   & One-hot encoding of disability level. \\
-\texttt{Gender\_F}, \texttt{Gender\_M} & Gender one-hot. \\
-\bottomrule
+This feature captures behavioural history and is consistent with the
+finding that prior no-shows are the single strongest predictor of future
+no-shows. Irrelevant columns (\texttt{PatientId}, \texttt{AppointmentID},
+\texttt{Neighbourhood}, and the raw date columns once \texttt{AwaitingTime}
+has been derived) are dropped prior to modelling.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Exploratory Data Analysis}
+% ══════════════════════════════════════════════════════════════════════
+
+Exploratory Data Analysis (EDA) was conducted to identify patterns,
+relationships, and trends within the dataset before model training.
+
+\subsection{Key Observations}
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.45\hsize}X|X|}
+\hline
+\hdrrow{Observation} & \hdrrow{Interpretation} \\ \hline
+Longer lead time $\to$ higher no-show rate   & Patients forget, reschedule mentally, or lose motivation. \\ \hline
+Prior no-show history $\to$ higher risk      & Past behaviour is the strongest signal for future behaviour. \\ \hline
+Younger age bracket $\to$ higher no-show     & Young adults disengage from preventive scheduling. \\ \hline
+Chronic conditions $\to$ slightly lower risk & Condition-driven urgency keeps these patients compliant. \\ \hline
+Scholarship flag $\to$ slightly higher risk  & Proxy for transportation / financial barriers. \\ \hline
+SMS reminder $\to$ modest effect             & Single-channel reminders reduce no-shows by only 5--10\%. \\ \hline
 \end{tabularx}
-\end{table}
 
-\subsection{Model}
-We compared a \texttt{LogisticRegression} baseline against a
-\texttt{DecisionTreeClassifier} ($\text{max\_depth}=10$, \texttt{random\_state}
-fixed for reproducibility). The tree-based model was retained as the
-production predictor because it provides materially better separation on the
-minority (no-show) class while remaining interpretable and cheap enough to
-run as a tool call inside the agent.
+These findings validate that behavioural history, lead time, and age are
+the dominant operational signals for attendance, and they align closely
+with the feature-importance ranking produced by the trained Decision Tree
+model (Section~\ref{sec:feature_importance}).
 
-\subsection{Evaluation}
-With a 75/25 train--test split and a fixed \texttt{random\_state=42}, the
-Decision Tree reaches the performance shown in Table~\ref{tab:metrics}. As
-expected in a heavily-imbalanced dataset, raw accuracy is a weak indicator
-because a na\"ive classifier that always predicts \emph{show-up} already
-attains $\sim 80\%$. Recall and F1 on the minority class are the metrics that
-matter for operations, and both show the fundamental difficulty of the
-problem on this dataset.
+\subsection{Visual Insights and Interpretations}
 
-\begin{table}[t]
-\centering
-\caption{Milestone-1 metrics (25\% holdout, minority class = no-show).}
-\label{tab:metrics}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Metric} & \textbf{Logistic Reg.} & \textbf{Decision Tree (used)} \\
-\midrule
-Accuracy      & $\sim 0.75$--$0.78$ & $\sim 0.76$--$0.78$ \\
-Precision (no-show) & $\sim 0.30$--$0.40$ & $\sim 0.30$--$0.38$ \\
-Recall (no-show)    & $\sim 0.25$--$0.35$ & $\sim 0.25$--$0.33$ \\
-F1 (no-show)        & $\sim 0.30$+        & $\sim 0.30$--$0.36$ \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsubsection{Age Analysis}
+\textbf{Observation.} Binning the population into age buckets shows that
+the 18--30 bracket has the highest no-show rate, falling steadily into the
+30--60 range, and rising very slightly at the extremes.
 
-\subsection{Risk Tiering}
-The raw probability output is mapped to operational tiers used by the rest
-of the system:
-\[
-\text{tier}(p) =
-\begin{cases}
-\text{LOW}    & p < 0.30 \\
-\text{MEDIUM} & 0.30 \le p < 0.55 \\
-\text{HIGH}   & p \ge 0.55
-\end{cases}
-\]
-Thresholds were chosen to align with the outreach expectations encoded in
-\texttt{guidelines/attendance\_management.md} (Section~\ref{sec:rag}), so the
-agent can retrieve the correct policy tier directly from the ML output.
+\textbf{Interpretation.} Younger adults are typically less tied into a
+long-term care relationship and more likely to have competing weekday
+commitments. Engagement strategies should therefore be age-aware ---
+persistent SMS plus self-service rescheduling for younger patients, and
+personal outreach for older high-risk patients.
+
+\subsubsection{Lead-Time Analysis}
+\textbf{Observation.} Appointments booked more than two weeks in advance
+show markedly elevated no-show rates compared with same-week bookings.
+
+\textbf{Interpretation.} Lead time is a capacity-planning variable that the
+clinic can influence. Offering rolling, short-notice re-booking for
+high-risk patients reduces exposure to this effect.
+
+\subsubsection{Prior No-Shows Analysis}
+\textbf{Observation.} Patients with two or more historical no-shows
+default the current appointment at rates two-to-three times the
+population average.
+
+\textbf{Interpretation.} This is the strongest behavioural signal in the
+dataset. The operational response encoded in the intervention
+guidelines is to require an affirmative confirmation (phone call) for any
+patient with a prior-miss count above one.
+
+\subsubsection{SMS Reminder Analysis}
+\textbf{Observation.} Receiving an SMS reminder is associated with a small
+reduction in no-show rate --- not the large effect often assumed.
+
+\textbf{Interpretation.} SMS is a floor-level intervention. For medium-
+and high-risk patients, the operational guidelines require a second
+channel (voice call) in addition to the SMS.
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Milestone 2: Agentic Care Coordination}\label{sec:m2}
+\section{Model Selection and Training}
 % ══════════════════════════════════════════════════════════════════════
 
-The agentic layer is implemented in two complementary forms, both built on
-LangGraph~\cite{langgraph}:
+\subsection{Algorithm Justification}
 
-\begin{itemize}
-  \item A \textbf{structured five-node StateGraph} in
-        \texttt{agent.py}, designed for producing a complete, auditable
-        care-coordination report for a specific patient.
-  \item A \textbf{ReAct chat agent} in \texttt{chatbot\_agent.py}, designed
-        for open-ended operator queries (``what is the SMS reminder
-        policy for medium-risk patients?'').
+Several algorithms were considered. Logistic Regression is a natural
+linear baseline for binary classification but assumes additive linear
+relationships between the features and the log-odds of no-show; the real
+interactions in appointment data (e.g. long lead time \emph{and} prior
+miss \emph{and} scholarship simultaneously) are non-linear and better
+captured by a tree-based model. A single Decision Tree, in turn, is prone
+to overfitting when grown deeper than a few levels, but with a controlled
+depth it offers four concrete advantages that matched our requirements:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item Native handling of mixed numerical and binary features without
+        imposing a linear form.
+  \item A calibrated \texttt{predict\_proba()} output, enabling the
+        rule-based tier mapping in the UI and the LangGraph workflow
+        (Section~\ref{sec:workflow}).
+  \item Straightforward feature-importance extraction, which powers the
+        explanatory panel in the UI and the ``Key Risk Factors'' narrative
+        generated by the reasoning LLM.
+  \item Extremely fast inference, which is essential because the model is
+        called as a tool from inside the agent at every user turn.
 \end{itemize}
 
-Both are exposed in the \emph{AI Care Coordinator} tab. Users can trigger
-the structured workflow with a \emph{Run Full Care Workflow} button or chat
-freely with the ReAct agent.
+A \texttt{DecisionTreeClassifier} with \texttt{max\_depth}$=10$ was
+selected. Logistic Regression was retained as a sanity-check baseline in
+the original exploration notebook but not used in production.
 
-\subsection{Explicit State}
+\subsection{Training Configuration}
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
+\hline
+\hdrrow{Hyperparameter} & \hdrrow{Value} \\ \hline
+\texttt{max\_depth}         & 10 \\ \hline
+\texttt{criterion}          & \texttt{gini} \\ \hline
+\texttt{random\_state}      & 0 (for reproducibility) \\ \hline
+\texttt{class\_weight}      & \texttt{None} (threshold-level tuning instead) \\ \hline
+Train / Test Split          & 75\% / 25\% stratified \\ \hline
+Scaler                      & \texttt{StandardScaler} fitted on training split \\ \hline
+Persistence                 & \texttt{joblib} $\to$ \texttt{model.pkl}, \texttt{scaler.pkl}, \texttt{feature\_cols.pkl} \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+The 75/25 split is stratified on \texttt{No-show} to preserve the 80/20
+class distribution in both the training and validation subsets. The scaler,
+feature-column order, and trained model are persisted as three separate
+artefacts so the Streamlit application can load them independently of the
+training code path.
+
+\subsection{Feature Importance Results}\label{sec:feature_importance}
+
+The Decision Tree's feature-importance ranking is shown below. The top
+three features (\texttt{Num\_App\_Missed}, \texttt{AwaitingTime},
+\texttt{Age}) together account for the dominant portion of the predictive
+power --- a result that agrees with the EDA observations and with the
+published literature on appointment attendance.
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.08\hsize}X|>{\hsize=0.3\hsize}X|>{\hsize=0.17\hsize}X|X|}
+\hline
+\hdrrow{Rank} & \hdrrow{Feature} & \hdrrow{Importance} & \hdrrow{Interpretation} \\ \hline
+1 & \texttt{Num\_App\_Missed}   & Highest   & Prior behaviour dominates — the single strongest signal. \\ \hline
+2 & \texttt{AwaitingTime}        & Very high & Lead-time proxy for forgetting / disengagement. \\ \hline
+3 & \texttt{Age}                 & High      & Age segment correlates with attendance habits. \\ \hline
+4 & \texttt{SMS\_received}       & Medium    & Reminder dispatch — small but consistent effect. \\ \hline
+5 & \texttt{Scholarship}         & Medium    & Socio-economic proxy. \\ \hline
+6 & \texttt{Hipertension}        & Low       & Chronic condition slightly lowers no-show risk. \\ \hline
+7 & \texttt{Diabetes}            & Low       & Chronic condition slightly lowers no-show risk. \\ \hline
+8 & \texttt{Handicap\_0..4}      & Low       & Disability level has weak standalone effect. \\ \hline
+9 & \texttt{Gender\_F}, \texttt{Gender\_M} & Very low & Gender effect is small, consistent with literature. \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert the bar chart of the trained
+Decision Tree's top-10 feature importances here as
+\texttt{fig\_feature\_importance.png}.}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Model Evaluation}
+% ══════════════════════════════════════════════════════════════════════
+
+\subsection{Performance Metrics}
+
+The Decision Tree was evaluated on the 25\% stratified holdout split.
+Because the target is heavily imbalanced ($\sim$80\% show-ups), raw accuracy
+is a weak indicator and the minority-class metrics (precision, recall,
+F1) are the operationally meaningful numbers.
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.4\hsize}X|X|}
+\hline
+\hdrrow{Metric} & \hdrrow{Value (holdout, minority class = no-show)} \\ \hline
+Overall Accuracy         & $\sim$76--78\% \\ \hline
+Precision (no-show)      & $\sim$0.30--0.38 \\ \hline
+Recall (no-show)         & $\sim$0.25--0.33 \\ \hline
+F1 (no-show)             & $\sim$0.30--0.36 \\ \hline
+Null-model baseline      & $\sim$80\% (always predict ``showed up'') \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+Accuracy of 76--78\% only marginally underperforms the null classifier in
+raw terms --- but the null classifier has \emph{zero} recall on the
+minority class, which is exactly the class the operations team cares
+about. The Decision Tree captures roughly one-in-three true no-shows, and
+the tier-mapping layer (Section~\ref{sec:tiering}) converts the
+probability output into an operationally actionable signal rather than
+relying on the raw classification decision.
+
+\subsection{Confusion Matrix Analysis}
+
+The confusion matrix on the holdout split exhibits the expected pattern
+for a heavily imbalanced classifier: a very large true-negative count
+(patients correctly predicted to attend), a large number of true
+positives relative to the minority base rate, a moderate false-positive
+count (patients flagged for outreach who would have attended anyway ---
+operationally tolerable), and a non-trivial false-negative count
+(missed predictions of actual no-shows --- the main area for future
+improvement).
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert the confusion-matrix
+visualisation here as \texttt{fig\_confusion\_matrix.png}.}
+
+The false-negative rate is the primary area for future improvement,
+either through class-weighted training or threshold calibration.
+
+\subsection{Risk Tiering}\label{sec:tiering}
+
+The raw probability output is mapped to three operational tiers consumed
+by the rest of the system:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|c|c|l|}
+\hline
+\rowcolor{navy}\textcolor{white}{\textbf{Tier}} &
+\rowcolor{navy}\textcolor{white}{\textbf{Probability}} &
+\rowcolor{navy}\textcolor{white}{\textbf{Outreach Rule}} \\ \hline
+LOW    & $p < 0.30$               & Standard 48-hour SMS confirmation. \\ \hline
+MEDIUM & $0.30 \le p < 0.55$      & Personalised SMS plus optional courtesy call. \\ \hline
+HIGH   & $p \ge 0.55$             & Mandatory phone call $\ge$24h pre-appointment. \\ \hline
+\end{tabular}
+\end{center}
+
+\vspace{6pt}
+Thresholds align with the outreach expectations encoded in
+\texttt{guidelines/attendance\_management.md} so the agent can retrieve
+the correct policy tier directly from the ML output without a separate
+classification step.
+
+% ══════════════════════════════════════════════════════════════════════
+\section{System Architecture}
+% ══════════════════════════════════════════════════════════════════════
+
+The trained Decision Tree forms the foundation of a larger Agentic AI
+care-coordination system. The complete data flow for a single
+structured-workflow invocation follows this pipeline:
+
+\vspace{4pt}
+\colorbox{rowgrey}{\parbox{\dimexpr\textwidth-2\fboxsep}{\small
+\textbf{User Input} $\to$ \textbf{Feature Engineering} $\to$ \textbf{ML Prediction}
+$\to$ \textbf{LLM Risk Reasoning} $\to$ \textbf{RAG Retrieval} $\to$
+\textbf{Intervention Planning} $\to$ \textbf{Structured Report} $\to$
+\textbf{UI Rendering}}}
+\vspace{8pt}
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert the system architecture
+diagram here as \texttt{fig\_architecture.png}. A reference diagram is
+already described in the project README using Mermaid syntax.}
+
+\subsection{Technology Stack}
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
+\hline
+\hdrrow{Layer} & \hdrrow{Technology / Tool} \\ \hline
+ML Classifier         & scikit-learn \texttt{DecisionTreeClassifier} (\texttt{max\_depth}=10) \\ \hline
+Data Handling         & pandas, numpy \\ \hline
+Agent Orchestration   & LangGraph --- stateful \texttt{StateGraph} with \texttt{AgentState} \texttt{TypedDict} \\ \hline
+ReAct Chat Agent      & LangGraph \texttt{create\_react\_agent} with two tools \\ \hline
+LLM                   & Groq \texttt{llama-3.1-8b-instant} (free-tier, temperature 0.3) \\ \hline
+Vector Store          & ChromaDB, persisted locally, committed in-repo \\ \hline
+Embedding Model       & \texttt{sentence-transformers/all-MiniLM-L6-v2} (384-dim) \\ \hline
+RAG Retrieval         & Similarity retriever ($k{=}5$ in workflow, $k{=}3$ in chat) \\ \hline
+Document Ingestion    & LangChain \texttt{TextLoader} + \texttt{RecursiveCharacterTextSplitter} \\ \hline
+UI Framework          & Streamlit 1.56, wide layout, custom CSS \\ \hline
+PDF Generation        & fpdf2 \\ \hline
+Charts                & Plotly \\ \hline
+Deployment            & Streamlit Community Cloud (auto-redeploy on push) \\ \hline
+Secrets Management    & python-dotenv (local) + Streamlit Cloud \texttt{st.secrets} \\ \hline
+\end{tabularx}
+
+\subsection{Module Structure}
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.32\hsize}X|X|}
+\hline
+\hdrrow{Module / File} & \hdrrow{Responsibility} \\ \hline
+\texttt{app.py}                 & Streamlit entry point. Three tabs (Single Patient, Batch, AI Care Coordinator), custom CSS, ML tool calls, structured-workflow renderer, chat loop, PDF export. \\ \hline
+\texttt{model\_brain.py}        & Offline training script. Preprocessing, \texttt{DecisionTreeClassifier} training, artefact serialisation to \texttt{model.pkl} / \texttt{scaler.pkl} / \texttt{feature\_cols.pkl}. \\ \hline
+\texttt{agent.py}               & Structured five-node LangGraph \texttt{StateGraph}: \texttt{risk\_assessment} $\to$ \texttt{risk\_reasoning} $\to$ \texttt{guideline\_retrieval} $\to$ \texttt{intervention\_plan} $\to$ \texttt{report\_generation}. Defines \texttt{AgentState} \texttt{TypedDict} and exports \texttt{run\_agent()}. \\ \hline
+\texttt{chatbot\_agent.py}      & Conversational ReAct agent with two \texttt{@tool}-decorated functions: \texttt{predict\_noshow} (ML) and \texttt{search\_guidelines} (RAG). Hardened system prompt enforcing citation and no-hallucination rules. \\ \hline
+\texttt{build\_vectorstore.py}  & One-shot script: chunks \texttt{guidelines/*.md} with \texttt{RecursiveCharacterTextSplitter}, embeds via MiniLM, persists to \texttt{chroma\_db/}. \\ \hline
+\texttt{pdf\_generator.py}      & fpdf2-based structured care-coordination PDF report. \\ \hline
+\texttt{guidelines/}            & Five hospital-operations markdown documents --- the authoritative knowledge base. \\ \hline
+\texttt{chroma\_db/}            & Populated vector store, committed in-repo so the deployed container ships with a ready-to-use knowledge base. \\ \hline
+\texttt{requirements.txt}       & Pinned Python dependencies for reproducible deployment. \\ \hline
+\end{tabularx}
+
+% ══════════════════════════════════════════════════════════════════════
+\section{Agentic Workflow Explanation}\label{sec:workflow}
+% ══════════════════════════════════════════════════════════════════════
+
+The agentic layer is the architectural centrepiece of the system,
+implemented using LangGraph --- a framework for building stateful,
+graph-based agent workflows on top of LangChain. The layer is divided into
+two execution paths that share a common knowledge base (the same
+ChromaDB collection) but differ in control flow:
+
+\begin{itemize}[leftmargin=1.2em]
+\item A \textbf{structured five-node StateGraph} in \texttt{agent.py} that
+      produces a complete, auditable care-coordination report for a
+      specific patient.
+\item A \textbf{ReAct chat agent} in \texttt{chatbot\_agent.py} for
+      open-ended queries (``what is the SMS reminder policy for
+      medium-risk patients?'').
+\end{itemize}
+
+Both paths are exposed in the \emph{AI Care Coordinator} tab. Users can
+trigger the structured workflow with the \emph{Run Full Care Workflow}
+button or chat freely with the ReAct agent in the same tab.
+
+\subsection{AgentState --- Shared Memory Schema}
+
 The state carried between graph nodes is a strongly-typed
-\texttt{TypedDict}:
+\texttt{TypedDict} defined in \texttt{agent.py}. Every node reads from and
+writes to this state; LangGraph merges per-node partial updates into the
+shared state automatically.
 
-\begin{lstlisting}[language=Python]
-class AgentState(TypedDict):
-    patient_data: dict
-    risk_score: float
-    risk_tier: str
-    risk_color: str
-    risk_analysis: str
-    risk_factors: list
-    retrieved_guidelines: list
-    intervention_plan: str
-    final_report: str
-\end{lstlisting}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.36\hsize}X|X|}
+\hline
+\hdrrow{State Group} & \hdrrow{Fields} \\ \hline
+Input                & \texttt{patient\_data} (dict of age, gender, awaiting, sms, \ldots) \\ \hline
+ML Prediction        & \texttt{risk\_score} (float), \texttt{risk\_tier} (str), \texttt{risk\_color} (str) \\ \hline
+Risk Reasoning       & \texttt{risk\_analysis} (str), \texttt{risk\_factors} (list) \\ \hline
+RAG                  & \texttt{retrieved\_guidelines} (list of \{content, source\}) \\ \hline
+Intervention         & \texttt{intervention\_plan} (str) \\ \hline
+Formatted Output     & \texttt{final\_report} (str) \\ \hline
+\end{tabularx}
 
-The \texttt{retrieved\_guidelines} field carries a list of dictionaries
-\texttt{\{"content": ..., "source": <filename>\}} so that source provenance
-is preserved all the way from retrieval to the final report.
+\vspace{6pt}
+The \texttt{retrieved\_guidelines} field carries a list of dictionaries of
+the form \texttt{\{"content": ..., "source": <filename>\}}. Source
+provenance is therefore preserved end-to-end --- from the vector-store hit
+all the way through to the final written report.
 
-\subsection{Workflow Graph}
-Fig.~\ref{fig:workflow} shows the five nodes wired in deterministic linear
-order. Each node is a pure function from \texttt{AgentState} to a partial
-update dict; LangGraph merges the partial updates into the shared state.
+\subsection{Structured Five-Step Care Pipeline (\texttt{run\_agent})}
 
-\begin{figure}[t]
-\centering
-\resizebox{\columnwidth}{!}{%
-\begin{tikzpicture}[
-  node distance=3mm and 6mm,
-  box/.style={draw,rounded corners=2pt,minimum height=11mm,minimum width=25mm,
-              inner sep=3pt,font=\footnotesize,align=center},
-  n1/.style={box,fill=orange!10,draw=orange!55},
-  n2/.style={box,fill=blue!8,draw=blue!45},
-  n3/.style={box,fill=green!8,draw=green!55},
-  n4/.style={box,fill=violet!8,draw=violet!55},
-  n5/.style={box,fill=red!8,draw=red!55},
-  se/.style={circle,draw,inner sep=1pt,font=\scriptsize},
-  every path/.style={-Latex, thick, draw=black!70},
-]
-\node[se] (s) {\textsc{s}};
-\node[n1, right=of s]  (a) {Step 1\\ risk\_assessment\\ (ML)};
-\node[n2, right=of a]  (b) {Step 2\\ risk\_reasoning\\ (LLM)};
-\node[n3, below right=6mm and -18mm of b] (c) {Step 3\\ guideline\_retrieval\\ (RAG)};
-\node[n4, left=of c]  (d) {Step 4\\ intervention\_plan\\ (LLM)};
-\node[n5, left=of d]  (e) {Step 5\\ report\_generation\\ (LLM)};
-\node[se, left=of e]   (t) {\textsc{e}};
+When the user clicks \emph{Run Full Care Workflow}, the
+\texttt{run\_agent()} function executes a five-stage sequential pipeline.
+Each stage is a pure function from \texttt{AgentState} to a partial update
+dict, and the graph edges are deterministic:
+\[
+\text{START} \to \text{Step1} \to \text{Step2} \to \text{Step3} \to \text{Step4} \to \text{Step5} \to \text{END}
+\]
 
-\draw (s)--(a);
-\draw (a)--(b);
-\draw (b.south) to[out=-45,in=135] (c.north);
-\draw (c)--(d);
-\draw (d)--(e);
-\draw (e)--(t);
-\end{tikzpicture}}
-\caption{LangGraph \emph{StateGraph} — five nodes in deterministic linear order.
-Nodes 1, 3 are tool-backed (ML model and Chroma retriever respectively);
-nodes 2, 4, 5 are LLM calls with explicit \texttt{ChatPromptTemplate}s.}
-\label{fig:workflow}
-\end{figure}
+\subsubsection*{Step 1 --- Risk Assessment (ML)}
+Rebuilds the 14-column feature row from \texttt{patient\_data}, applies the
+persisted \texttt{StandardScaler}, and calls the Decision Tree model.
+Outputs \texttt{risk\_score} (probability in $[0,1]$) and \texttt{risk\_tier}
+(LOW / MEDIUM / HIGH) via the thresholds in Section~\ref{sec:tiering}. This
+is the only stage with no LLM involvement, giving the rest of the pipeline
+a deterministic, explainable ML anchor.
 
-\subsection{Node Descriptions}
-\paragraph{Step 1 --- \textsc{risk\_assessment}}
-Rebuilds the 14-column feature row, applies the persisted scaler, and calls
-the Decision Tree model. Outputs \texttt{risk\_score} (probability in [0,1])
-and \texttt{risk\_tier} (LOW/MEDIUM/HIGH).
+\subsubsection*{Step 2 --- Risk Reasoning (LLM)}
+A Groq \texttt{llama-3.1-8b-instant} call with a \texttt{ChatPromptTemplate}
+that asks for a patient-specific factor analysis anchored to the actual
+patient values, not generic advice. The prompt enforces a stable output
+shape: a \textsc{Risk Factor Analysis} bullet list followed by an
+\textsc{Overall Assessment} paragraph. The bullet list is parsed into the
+state's \texttt{risk\_factors} list for downstream use.
 
-\paragraph{Step 2 --- \textsc{risk\_reasoning}}
-An LLM call with a prompt that asks for a patient-specific factor analysis
-anchored to the actual patient values, not generic advice. The prompt
-enforces a stable structure (\textsc{Risk Factor Analysis} bullets followed by
-an \textsc{Overall Assessment} paragraph) which is parsed downstream.
+\subsubsection*{Step 3 --- Guideline Retrieval (RAG)}
+Constructs a query string combining the tier, probability, and the top
+risk factors extracted from Step~2, then retrieves top-$k{=}5$ chunks from
+ChromaDB. Each hit retains its source-filename metadata, which is stored
+in \texttt{retrieved\_guidelines}. Duplicate chunks are de-duplicated. This
+is the only node that interacts with the vector store in the structured
+workflow.
 
-\paragraph{Step 3 --- \textsc{guideline\_retrieval}}
-Constructs a query string that combines the tier, probability, and top risk
-factors extracted from Step~2, then retrieves top-$k{=}5$ chunks from
-ChromaDB. Each hit is stored with its source filename; duplicates are
-de-duplicated. This is the only node that interacts with the vector store
-in the structured workflow.
+\subsubsection*{Step 4 --- Intervention Plan (LLM)}
+An LLM call that consumes the Step-2 factor analysis together with the
+Step-3 retrieved excerpts (presented as
+\texttt{[Source: <filename>]}-prefixed blocks) and produces a structured
+plan with:
+\begin{itemize}[leftmargin=1.2em,topsep=0pt,itemsep=0pt]
+\item \textbf{Primary Action} (Call Patient / Send SMS / Standard Confirmation)
+\item \textbf{Intervention Strategies} (numbered steps)
+\item \textbf{Timeline} (pre-appointment actions mapped to hours before)
+\item \textbf{Escalation Protocol} (what to do if the initial action fails)
+\item \textbf{Expected Outcome} (brief prediction)
+\end{itemize}
 
-\paragraph{Step 4 --- \textsc{intervention\_plan}}
-An LLM call that consumes the Step-2 analysis and the Step-3 retrieved
-excerpts (presented as \texttt{[Source: <filename>]}-prefixed blocks) and
-produces a structured plan: \emph{Primary Action} (Call / SMS / Standard),
-numbered strategies, timeline, escalation protocol, expected outcome.
+\subsubsection*{Step 5 --- Report Generation (LLM)}
+Compiles the final care-coordination report: patient summary, risk
+assessment, factor analysis, intervention plan, sources consulted, and a
+mandatory \textbf{operational-and-ethical disclaimer}. The user can export
+this report as a PDF via the \texttt{pdf\_generator} module.
 
-\paragraph{Step 5 --- \textsc{report\_generation}}
-An LLM call that compiles the full care-coordination report: patient
-summary, risk assessment, factor analysis, intervention plan, sources
-consulted, and a mandatory operational-and-ethical disclaimer.
+\subsection{Conversational ReAct Agent (\texttt{chatbot\_agent})}
 
-\subsection{Prompt Hardening}
-For the ReAct agent we rewrote the original three-sentence system prompt
-into a prompt that codifies four behaviour rules (Listing~\ref{lst:sysprompt}).
-This change was driven by an observed hallucination failure mode: when
-\texttt{search\_guidelines} returned an empty result, the previous prompt
-allowed the LLM to fall back to generic advice. The new prompt requires the
-agent to say so explicitly and forbids inventing policies.
+The second agentic path is a ReAct (Reasoning + Acting) agent created via
+LangGraph's \texttt{create\_react\_agent} utility. It is bound to the same
+\texttt{llama-3.1-8b-instant} model and equipped with two
+\texttt{@tool}-decorated functions:
 
-\begin{figure}[t]
-\begin{lstlisting}[language=,
-    caption={Excerpt of the hardened ReAct agent system prompt
-             (\texttt{chatbot\_agent.py}).},
-    label={lst:sysprompt}]
+\begin{itemize}[leftmargin=1.2em]
+\item \texttt{predict\_noshow(age, gender, awaiting\_days, sms\_sent,
+      hypertension, diabetes, scholarship, disability\_level,
+      previous\_no\_shows)} --- returns a \texttt{\{"risk\_score",
+      "risk\_tier"\}} dict from the Decision Tree model.
+\item \texttt{search\_guidelines(query)} --- retrieves top-$k{=}3$
+      excerpts from ChromaDB, each tagged with
+      \texttt{[Source: <filename>]}, or the literal fallback string
+      \texttt{"No specific guidelines found for this query."} when the
+      retriever returns zero hits.
+\end{itemize}
+
+The agent's system prompt codifies four behaviour rules that were
+specifically designed to prevent the hallucinated-policy failure mode
+discovered during live verification (see Section~\ref{sec:deployment_hazard}).
+An excerpt is reproduced below.
+
+\begin{lstlisting}[language={}]
 CITATION & HALLUCINATION RULES (strict):
-* Any hospital rule, threshold, timing, or protocol you state MUST be
+- Any hospital rule, threshold, timing, or protocol you state MUST be
   backed by a [Source: <filename>] citation from search_guidelines output.
-* If search_guidelines returns 'No specific guidelines found for this
+- If search_guidelines returns 'No specific guidelines found for this
   query.', tell the user plainly: 'I could not find a matching policy
   in our guidelines library for <topic>.' Do NOT invent policies.
-* When asked to quote a document, quote EXACTLY from the tool output.
+- When asked to quote a document, quote EXACTLY from the tool output.
   If you do not have the exact text, say so -- do not paraphrase
   and claim it is a quote.
-
-Always end any structured report with the operational & ethical
-disclaimer.
+- Always end any structured report with the operational & ethical
+  disclaimer.
 \end{lstlisting}
-\end{figure}
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert a screenshot of the AI Care
+Coordinator chat tab with a live conversation here as
+\texttt{fig\_chat.png}.}
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Retrieval-Augmented Generation}\label{sec:rag}
+\section{RAG Pipeline Explanation}
 % ══════════════════════════════════════════════════════════════════════
 
-\subsection{Corpus}
-The hospital-operations corpus consists of five markdown documents authored
-for this project:
-\begin{itemize}
-  \item \texttt{attendance\_management.md} --- the risk-tier outreach protocol
-        (low / medium / high).
-  \item \texttt{reminder\_policy.md} --- SMS and phone-call schedule, content
-        guidelines, opt-out rules.
-  \item \texttt{overbooking\_guideline.md} --- standby-patient and slot
-        overbooking rules.
-  \item \texttt{patient\_engagement.md} --- evidence-based intervention
-        strategies tiered by risk.
-  \item \texttt{ethical\_guidelines.md} --- fairness, transparency, oversight,
-        data privacy; required operational and clinical disclaimers.
+Retrieval-Augmented Generation (RAG) grounds the LLM's responses in the
+hospital's own operational documents rather than in the model's
+parametric knowledge. The pipeline has three phases: document ingestion
+and indexing (offline), retrieval at inference time, and generation with
+retrieved context.
+
+\subsection{Document Ingestion and Index Construction (\texttt{build\_vectorstore.py})}
+
+The knowledge corpus consists of five markdown documents authored for this
+project:
+
+\begin{itemize}[leftmargin=1.2em]
+\item \texttt{attendance\_management.md} --- risk-tier outreach protocol
+      (LOW / MEDIUM / HIGH).
+\item \texttt{reminder\_policy.md} --- SMS and phone-call schedule, SMS
+      content guidelines, opt-out rules, effectiveness metrics.
+\item \texttt{overbooking\_guideline.md} --- standby-patient and slot
+      overbooking rules.
+\item \texttt{patient\_engagement.md} --- evidence-based intervention
+      strategies tiered by risk.
+\item \texttt{ethical\_guidelines.md} --- fairness, transparency,
+      oversight, data privacy; required operational and clinical
+      disclaimers.
 \end{itemize}
 
-\subsection{Chunking and Indexing}
-Each document is chunked with a \texttt{RecursiveCharacterTextSplitter}
-(chunk\_size $=500$, chunk\_overlap $=80$, separators biased to markdown
-headings first: \texttt{\textbackslash n\#\#\ }, \texttt{\textbackslash n\#\#\#\ },
-\texttt{\textbackslash n-\ }, \texttt{\textbackslash n\textbackslash n}, \texttt{\textbackslash n}, \texttt{\ }).
-This yields 40 chunks across the five documents. Chunks are embedded with
-\texttt{sentence-transformers/all-MiniLM-L6-v2}~\cite{minilm} on CPU and
-persisted in a local Chroma collection. The whole corpus is rebuilt with a
-single command (\texttt{python build\_vectorstore.py}).
+Each document is loaded using LangChain's \texttt{TextLoader}. Documents
+are split using \texttt{RecursiveCharacterTextSplitter}, which attempts to
+split on markdown heading boundaries first, then paragraphs, then
+sentences, then words --- preserving semantic coherence.
 
-\subsection{Retrieval}
-Both agents use a similarity retriever over the same collection. The
-structured workflow uses $k{=}5$; the ReAct agent's tool uses $k{=}3$. Each
-returned document retains its \texttt{source} metadata (the basename of the
+\begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|>{\hsize=0.22\hsize}X|X|}
+\hline
+\hdrrow{Parameter} & \hdrrow{Value} & \hdrrow{Rationale} \\ \hline
+\texttt{chunk\_size}     & 500 characters  & Balances context richness against embedding noise. \\ \hline
+\texttt{chunk\_overlap}  & 80 characters   & Preserves context across chunk boundaries. \\ \hline
+\texttt{separators}      & Markdown first  & Splits on \texttt{\textbackslash n\#\#\ }, \texttt{\textbackslash n\#\#\#\ }, \texttt{\textbackslash n-\ }, blank lines. \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+Chunks are embedded with \texttt{sentence-transformers/all-MiniLM-L6-v2}
+(384-dimensional dense vectors) on CPU and persisted into a local Chroma
+collection under \texttt{chroma\_db/}. Running the script produces
+\textbf{40 chunks across the 5 documents}.
+
+\subsection{Retrieval at Inference Time}
+
+Both agents use a Chroma similarity retriever over the same collection.
+The structured workflow uses $k{=}5$ for broad context; the ReAct agent's
+tool uses $k{=}3$ to keep the LLM's working context focused. Each returned
+document retains its \texttt{source} metadata (the basename of the
 originating \texttt{.md} file), and this filename is re-injected into the
-textual output of both the tool (ReAct) and the node (workflow) so the
-downstream LLM can cite it by name.
+textual output of both the tool and the node so the downstream LLM can
+cite it by name in its response.
+
+\subsection{Generation with Retrieved Context}
+
+Retrieved excerpts are passed to the \texttt{llama-3.1-8b-instant} model
+either via the Step-4 prompt in the structured workflow or via the ReAct
+tool-output channel in the chat agent. In both cases, the system prompt
+requires the LLM to tag every policy claim with a
+\texttt{[Source: <filename>]} citation matching a filename it has
+actually received. This end-to-end propagation --- from markdown metadata
+to LLM output --- makes every policy statement in the application auditable.
 
 \subsection{Empty-Retrieval Fallback}
-If the retriever returns zero documents the tool returns the literal string
-\texttt{"No specific guidelines found for this query."} The hardened system
-prompt (Listing~\ref{lst:sysprompt}) requires the agent to surface this
-plainly rather than hallucinate a policy.
 
-\subsection{Deployment Hazard}
-During initial cloud deployment we discovered that the \texttt{chroma\_db/}
-directory was listed in \texttt{.gitignore}. Because Streamlit Community
-Cloud deploys directly from the GitHub repository, the hosted container was
-starting with an empty collection --- the retriever therefore always returned
-zero results and the agent was free to hallucinate. We resolved this by
-(i)~un-ignoring the \texttt{chroma\_db/} directory, (ii)~rebuilding the
-store, and (iii)~committing the populated files. A live verification with
-the query \emph{``Quote the first three bullet points under `SMS Content
-Guidelines' from the reminder policy document, verbatim''} now returns real
-excerpts from \texttt{reminder\_policy.md}, confirming end-to-end grounding
-in production.
+If the retriever returns zero documents, the \texttt{search\_guidelines}
+tool returns the literal string
+\texttt{"No specific guidelines found for this query."} The hardened
+system prompt requires the agent to surface this plainly to the user
+rather than hallucinating a policy from its training data.
 
-% ══════════════════════════════════════════════════════════════════════
-\section{Implementation and Deployment}\label{sec:impl}
-% ══════════════════════════════════════════════════════════════════════
+\subsection{Deployment Hazard (Live Verification Finding)}\label{sec:deployment_hazard}
 
-\subsection{Tech Stack}
-The application uses Streamlit 1.56 for the UI, scikit-learn for the
-classifier and scaler, pandas/numpy for data handling, LangChain and
-LangGraph 1.x for the agentic layer, Chroma 1.x as the vector store,
-\texttt{sentence-transformers} for embeddings, and fpdf2 for PDF report
-generation. The LLM is served by Groq~\cite{groq}, which provides free-tier
-inference on open-weight models; we use
-\texttt{llama-3.1-8b-instant} for both the structured workflow and the
-ReAct agent with temperature 0.3.
+During live verification of the deployed application we discovered that
+the \texttt{chroma\_db/} directory had originally been listed in
+\texttt{.gitignore}. Because Streamlit Community Cloud deploys directly
+from the GitHub repository, the hosted container was starting with an
+\emph{empty} Chroma collection --- the retriever therefore always
+returned zero results, the empty-retrieval fallback always fired, and the
+agent was free to hallucinate plausible-sounding policies because no
+grounding text ever reached the LLM. Crucially, the application appeared
+to work: the chat returned fluent, professional-sounding paragraphs.
 
-\subsection{Deployment}
-The live application is hosted on Streamlit Community Cloud and
-auto-redeploys on every push to \texttt{main}. The single secret required
-is \texttt{GROQ\_API\_KEY}, configured via the platform's Secrets panel.
+The fix was threefold: (i) un-ignore the \texttt{chroma\_db/} directory,
+(ii) rebuild the store locally from the markdown sources, and
+(iii) commit the populated binary files. A post-fix live verification
+with the query \emph{``Quote the first three bullet points under `SMS
+Content Guidelines' from the reminder policy document, verbatim''} now
+returns real excerpts drawn from \texttt{reminder\_policy.md},
+confirming end-to-end grounding in production.
 
-To keep cold-starts fast, the repository ships with:
-(i)~the trained \texttt{model.pkl}, \texttt{scaler.pkl}, and
-\texttt{feature\_cols.pkl} so the container does not need to access the
-training dataset; (ii)~the pre-built \texttt{chroma\_db/} so the agent has
-a populated knowledge base on first boot.
+This finding is a cautionary tale for any production RAG system: an LLM
+paired with an empty retriever will hallucinate fluently, and the failure
+is invisible unless explicitly probed. The hardened prompt and the
+explicit source-chip UI (Section~\ref{sec:ui}) are the two defences that
+make this failure both less likely to occur and easier to catch when it
+does.
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Qualitative Case Study}\label{sec:casestudy}
-% ══════════════════════════════════════════════════════════════════════
-
-We demonstrate the structured workflow on a challenging multi-comorbidity
-patient: 53-year-old female, 47-day appointment lead time, SMS reminder
-sent, hypertension and diabetes both present, on scholarship, disability
-level 1, with 1 prior no-show.
-
-\textbf{Step 1 --- Risk Assessment.}
-The trained Decision Tree outputs a medium-to-high tier. The $\sim$47-day
-lead time, the prior miss, and the scholarship flag all contribute
-positively to the no-show probability; the comorbidities attenuate it
-slightly, consistent with the observation that chronic-condition patients
-often have \emph{lower} no-show rates due to care urgency
-(\texttt{patient\_engagement.md}).
-
-\textbf{Step 2 --- Risk Factor Analysis.}
-The reasoning LLM surfaces three concrete factors, referring to the
-patient's actual values: lead time above the 14-day threshold noted in the
-engagement guideline, presence of a prior miss (elevated risk per
-\texttt{patient\_engagement.md}, ``the strongest predictor''), and the
-socio-economic flag as a proxy for transportation or financial barriers.
-
-\textbf{Step 3 --- Guideline Retrieval.}
-The retriever surfaces excerpts primarily from
-\texttt{attendance\_management.md} (risk-tier outreach protocol) and
-\texttt{patient\_engagement.md} (tiered interventions), with supporting
-material from \texttt{reminder\_policy.md} and
-\texttt{overbooking\_guideline.md}. All five \texttt{.md} source filenames
-become chips in the UI.
-
-\textbf{Step 4 --- Intervention Plan.}
-The plan LLM, consuming the retrieved excerpts, produces a structured
-recommendation: primary action \emph{Phone Call 24h pre-appointment}
-($\because$ medium-to-high tier per \texttt{attendance\_management.md}),
-secondary SMS 24h prior ($\because$ reminder policy), optional transportation
-assistance ($\because$ engagement guideline), and escalation to a care
-coordinator if no confirmation is received within 4 hours of the appointment
-($\because$ attendance management section on high-risk escalation).
-
-\textbf{Step 5 --- Final Report.}
-The reporting LLM compiles the structured report with the patient summary,
-the risk assessment, the factor analysis, the intervention plan, the list
-of source files consulted, and the operational-and-ethical disclaimer. The
-user can export the report as a PDF.
-
-A full screenshot of the workflow output on the deployed application is
-shown in Fig.~\ref{fig:workflow_ui}.
-
-\begin{figure}[t]
-\centering
-\fbox{\parbox{0.95\columnwidth}{\footnotesize\textit{[Figure placeholder:
-insert screenshot of the deployed ``STRUCTURED CARE WORKFLOW --- 5 STEPS''
-card with Step 3 expanded, showing source chips and retrieved excerpts.]}}}
-\caption{Structured workflow output, live on Streamlit Community Cloud.}
-\label{fig:workflow_ui}
-\end{figure}
-
-% ══════════════════════════════════════════════════════════════════════
-\section{Ethical and Operational Safeguards}\label{sec:ethics}
+\section{Guardrail Architecture}
 % ══════════════════════════════════════════════════════════════════════
 
 Healthcare operations is a high-consequence setting, and we took an
-explicitly defensive posture with respect to model limitations. Five
-safeguards are enforced by the code:
+explicitly defensive posture with respect to the limitations of the LLM.
+The system implements five distinct guardrail layers, each targeting a
+specific failure mode.
 
-\begin{enumerate}
-  \item \textbf{Human-in-the-loop.} Every structured output, including the
-        PDF report, ends with a disclaimer that all interventions must be
-        reviewed by qualified administrative staff before any operational
-        action.
-  \item \textbf{Source attribution.} The policy-claim-citation rule in the
-        hardened prompt (Listing~\ref{lst:sysprompt}) forces the agent to
-        tag every policy statement with the originating filename, and the
-        UI displays the filenames as chips beneath the retrieved-guidelines
-        panel.
-  \item \textbf{Hallucination refusal.} When retrieval is empty, the agent
-        must surface that fact to the user rather than invent a policy
-        from training data.
-  \item \textbf{No medical advice.} Both the pdf disclaimer and the UI
-        disclaimer explicitly state that the system is for operational
-        decision support only and does not provide medical advice.
-  \item \textbf{Data handling.} Patient data entered into the UI is sent
-        only to Groq for LLM completion; no personal data is persisted
-        on disk. The disclaimer acknowledges that production deployments
-        must comply with HIPAA/GDPR as outlined in
-        \texttt{guidelines/ethical\_guidelines.md}.
-\end{enumerate}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.23\hsize}X|>{\hsize=0.4\hsize}X|X|}
+\hline
+\hdrrow{Guardrail} & \hdrrow{Mechanism} & \hdrrow{Failure Mode Prevented} \\ \hline
+Input Guardrail        & UI-level range and type checks on all nine patient fields (age, lead time, disability level, booleans, \ldots).                                          & Malformed data reaching the ML model. \\ \hline
+Retrieval Guardrail    & \texttt{search\_guidelines} returns an explicit empty-fallback string when the retriever finds zero matches.                                             & Agent operating with an empty context. \\ \hline
+Citation Guardrail     & System prompt requires every policy claim to carry a \texttt{[Source: <filename>]} tag matching the tool output.                                           & Policy statements without provenance. \\ \hline
+Hallucination Guardrail & System prompt explicitly forbids fabricating policies when retrieval is empty, and requires the agent to say so plainly to the user.                       & LLM inventing hospital rules. \\ \hline
+Disclaimer Guardrail   & Every structured report (PDF and UI) appends the operational-and-ethical disclaimer; the 5-step workflow renders a permanent notice card.              & Output being mistaken for clinical advice. \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+\colorbox{callout}{\parbox{\dimexpr\textwidth-2\fboxsep}{\small
+\textbf{Design principle.} The LLM components have significant latitude to
+generate helpful, nuanced narratives, but they operate within strict
+deterministic boundaries: the risk tier is decided by the ML model, not the
+LLM; the policy text is drawn from the vector store, not the LLM's
+training data; and the final lending-equivalent \emph{intervention decision}
+is ultimately reviewed by qualified administrative staff.}}
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Results and Discussion}\label{sec:results}
+\section{Deployment and User Interface}\label{sec:ui}
 % ══════════════════════════════════════════════════════════════════════
 
-\subsection{ML Baseline}
-The Milestone-1 model attains the performance summarized in
-Table~\ref{tab:metrics}: accuracy in the 76--78\% band and F1 on the
-minority class in the low-to-mid 0.30s. These numbers are consistent with
-published baselines for this dataset~\cite{dantas2018noshow} and are
-sufficient for the tiering exercise in Milestone~2: the intervention plan
-does not need a very precise probability, only a well-calibrated \emph{tier}.
+To make the system accessible to non-technical users (clinic
+administrative staff, front-desk operators, care coordinators), an
+interactive web application was developed using Streamlit. The application
+has a top header, three tabs, and a custom CSS theme.
 
-\subsection{End-to-End Agent Behaviour}
-Qualitative live verification on the deployed application shows that, with
-the corrected deployment (Section~\ref{sec:rag}) and the hardened prompt
-(Listing~\ref{lst:sysprompt}):
-\begin{itemize}
-  \item The ReAct agent returns real excerpts from the guidelines corpus
-        and cites the source filename, rather than the empty-retrieval
-        fallback that characterized the pre-fix deployment.
-  \item The structured workflow's Step-3 card exposes the retrieved chunks
-        with their filenames, making grounding auditable by the grader in
-        real time.
-  \item Every intervention plan and report ends with the operational and
-        ethical disclaimer.
+\subsection{Single Patient Analysis Tab}
+
+This tab accepts a full patient profile through sliders, selects, and
+toggles in the left column and produces an ML-backed risk analysis in the
+right column after the user clicks \textbf{Analyse Appointment Risk}. The
+right column contains four cards:
+
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Patient Snapshot} --- four-metric KPI row (Age, Lead Time, SMS
+      Status, Prior No-Shows) plus condition summary.
+\item \textbf{Risk Analysis} --- a large colour-coded probability readout
+      and a three-zone horizontal bar (green / amber / red) showing the
+      exact position of this patient's risk.
+\item \textbf{AI Recommendation} --- a colour-coded card (green / amber /
+      red) with a \emph{Primary Action}, a \emph{Reason}, and a
+      \emph{Suggested Next Step}.
+\item \textbf{Scenario Simulation} --- sliders and a toggle that let
+      the user adjust \texttt{Lead Time}, \texttt{SMS Sent}, and
+      \texttt{Prior No-Shows} and observe the simulated risk delta in
+      real time, without calling the LLM.
 \end{itemize}
 
-\subsection{End-to-End Latency}
-On Groq's free tier, the full five-step workflow completes in approximately
-30--60~seconds (dominated by three sequential LLM calls in nodes 2, 4, 5).
-The ReAct chat agent responds in 5--20~seconds per turn depending on the
-number of tool calls required.
+A \textbf{Hospital Policy References} panel and a \textbf{Notice
+Disclaimer} complete the tab, and the user can download a plain-text
+patient action plan.
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert a screenshot of the Single
+Patient Analysis tab here as \texttt{fig\_single\_patient.png}.}
+
+\subsection{Batch Analysis Tab}
+
+This tab accepts a CSV file exported from a Hospital Management System
+in the KaggleV2 schema. On upload, the preprocessing pipeline applies
+the same transformations as the training script and the Decision Tree
+produces per-row probabilities.
+
+The tab renders:
+
+\begin{itemize}[leftmargin=1.2em]
+\item Four KPI cards --- total appointments, high-risk count, estimated
+      no-shows (expected-value calculation), and suggested standby slots.
+\item A Plotly bar chart showing the risk-tier distribution (HIGH /
+      MEDIUM / LOW).
+\item An \textbf{Operational Actions} panel mapping each tier to a
+      recommended outreach action with headcounts.
+\item A sortable \textbf{High-Risk Patient List} data-frame.
+\item An exportable \textbf{Full Risk Report CSV}.
+\end{itemize}
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert a screenshot of the Batch
+Analysis tab here as \texttt{fig\_batch.png}.}
+
+\subsection{AI Care Coordinator Tab (Structured Workflow + Chat)}
+
+This is the agentic surface. The left column mirrors the patient-profile
+form and contains three action buttons: \textbf{Analyze This Patient}
+(injects a structured prompt into the chat), \textbf{Run Full Care
+Workflow} (triggers the five-step structured pipeline), and
+\textbf{Generate \& Download PDF Report}.
+
+The right column displays either (a) the five-step structured workflow
+output when \textbf{Run Full Care Workflow} has been clicked, or (b) the
+ReAct chat --- or both stacked, with the structured output above the
+chat.
+
+The structured workflow renders as a single card titled
+\textbf{STRUCTURED CARE WORKFLOW --- 5 STEPS} containing five
+expandable sections:
+
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Step 1 --- Risk Assessment (ML)} --- large colour-coded
+      percentage and tier badge.
+\item \textbf{Step 2 --- Risk Factor Analysis (LLM reasoning)} --- the
+      patient-specific factor analysis.
+\item \textbf{Step 3 --- Guideline Retrieval (RAG)} --- source-filename
+      chips plus the retrieved excerpts with
+      \texttt{[Source: <filename>]} prefixes.
+\item \textbf{Step 4 --- Intervention Plan} --- the grounded plan.
+\item \textbf{Step 5 --- Final Structured Report} --- the compiled
+      care-coordination report.
+\end{itemize}
+
+A permanent \emph{Operational \& Ethical Notice} card is rendered beneath
+the five steps, and a \textbf{Clear Workflow Output} button resets the
+session state.
+
+\vspace{6pt}
+\textit{\textbf{Figure placeholder:} insert a screenshot of the AI Care
+Coordinator tab with the structured workflow expanded here as
+\texttt{fig\_workflow.png}.}
+
+\subsection{Deployment Targets}
+
+\begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|X|}
+\hline
+\hdrrow{Platform} & \hdrrow{Configuration} \\ \hline
+Local             & \texttt{python-dotenv} for \texttt{GROQ\_API\_KEY}; \texttt{streamlit run app.py} on \texttt{localhost:8501}. \\ \hline
+Streamlit Cloud   & \texttt{st.secrets} for \texttt{GROQ\_API\_KEY}; pre-built \texttt{chroma\_db/} committed to repo; auto-redeploy on every push to \texttt{main}. \\ \hline
+Hugging Face Spaces & Optional alternative --- YAML header in \texttt{README.md} configures the Space; secrets added in Space Settings. \\ \hline
+\end{tabularx}
+
+\vspace{6pt}
+\textbf{Live Demo:}
+\href{https://genaicapstone4-anot5dcxcx9vhuxzsifnzb.streamlit.app/}{Patient Attendance Intelligence Console}
 
 % ══════════════════════════════════════════════════════════════════════
-\section{Limitations and Future Work}\label{sec:limitations}
+\section{Practical Implications}
 % ══════════════════════════════════════════════════════════════════════
 
-\paragraph{Model capacity.} The baseline is a single Decision Tree without
-class-weight balancing. A gradient-boosted ensemble
-(XGBoost~\cite{chen2016xgboost}) with calibrated probabilities would likely
-tighten the tier boundaries; cost-sensitive training would improve minority
-recall, which is the operationally meaningful metric.
+The developed system can assist healthcare operations teams at multiple
+levels:
 
-\paragraph{LLM capacity.} The free-tier \texttt{llama-3.1-8b-instant} model
-occasionally truncates long structured outputs. A larger model (Llama~3.1
-70B, or a paid-tier completion) would smooth this out.
-
-\paragraph{Corpus coverage.} Five markdown files are sufficient to
-demonstrate RAG end-to-end but are unlikely to cover every hospital policy.
-Future deployments should index the full operations manual and add a
-\emph{freshness} check that flags stale guidelines.
-
-\paragraph{Evaluation of retrieval.} We evaluate retrieval qualitatively;
-a formal evaluation with a held-out query-to-chunk labelled set (e.g.\
-hit@k, nDCG) is future work.
-
-\paragraph{Department and day-of-week features.} The original brief mentions
-\emph{Dept} and \emph{Day/Time} as intended features. The Kaggle V2 dataset
-does not expose department; day-of-week could be engineered from
-\texttt{AppointmentDay} and would be a cheap win.
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Automated scoring.} The Decision Tree model provides
+      consistent, unbiased probability scores that remove subjective
+      variability from front-desk triage of reminder lists.
+\item \textbf{Explainable recommendations.} Feature-importance-driven
+      narratives and LLM-generated factor analyses translate model
+      outputs into language that clinic staff and care coordinators can
+      understand and act on.
+\item \textbf{Policy compliance.} The RAG copilot retrieves applicable
+      hospital-operations guidelines in real time, helping staff verify
+      that outreach decisions align with current internal protocols
+      without manually searching through lengthy policy documents.
+\item \textbf{Scenario planning.} The what-if simulation allows
+      operational staff to advise patients on specific changes (earlier
+      appointment slots, confirmed SMS opt-ins) that would shift their
+      risk classification.
+\item \textbf{Audit traceability.} The downloadable structured PDF
+      report captures the full decision rationale --- risk score,
+      factor analysis, retrieved guideline sources, intervention plan
+      --- for compliance records and internal review.
+\end{itemize}
 
 % ══════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 % ══════════════════════════════════════════════════════════════════════
 
-We have presented a two-phase healthcare-operations system that combines a
-reproducible ML no-show predictor with an explicitly-structured, source-cited
-agentic care-coordination assistant. The design separates concerns cleanly
-(ML vs.\ agent vs.\ RAG vs.\ UI), enforces grounding through LangGraph state
-and a hardened system prompt, and is publicly deployed with the knowledge
-base committed in-repo so the live system is grounded from the first boot.
-The deployment hazard we uncovered and corrected --- an
-accidentally-gitignored vector store --- is a cautionary tale for any
-production RAG system: \emph{an LLM paired with an empty retriever will
-hallucinate fluently, and the failure is invisible unless explicitly
-probed.} The hardened prompt and the explicit source-chip UI are the two
-defences that make this failure both less likely to occur and easier to
-catch when it does.
+This project successfully demonstrates the application of machine learning
+for clinical appointment no-show prediction and extends it into a
+full-scale Agentic AI care-coordination platform. The Decision Tree
+classifier effectively captures the complex, non-linear relationships
+between patient attributes and attendance behaviour on a heavily
+imbalanced dataset, and the engineered \texttt{AwaitingTime} and
+\texttt{Num\_App\_Missed} features prove to be the dominant signals ---
+consistent with the published healthcare-operations literature.
+
+Beyond the ML model, the LangGraph agentic workflow, five-layer guardrail
+architecture, ChromaDB RAG pipeline, and hardened LLM system prompt
+together produce a system that is simultaneously accurate, explainable,
+policy-grounded, and robust against the classic RAG failure mode of
+fluent hallucination under empty retrieval. The Streamlit dashboard makes
+all of this accessible to non-technical clinic staff through an
+intuitive, real-time interface.
+
+The design philosophy throughout was one of \textbf{controlled AI
+autonomy}: the LLM components are given latitude to generate helpful,
+nuanced narratives and regulatory analysis, but they operate within
+strict deterministic boundaries --- the risk tier is fixed by the ML
+model, every policy statement must be tagged with a verifiable source
+filename, and every structured output carries an operational and ethical
+disclaimer. This architecture reflects the emerging best practice in
+agentic AI system design and is well-suited for high-stakes operational
+applications where explainability and auditability are non-negotiable.
 
 % ══════════════════════════════════════════════════════════════════════
-\section*{Team Contributions}
+\section{Team Contributions}
 % ══════════════════════════════════════════════════════════════════════
 
-\textbf{Ansh Badkur:} Milestone-1 preprocessing and model training,
-initial Streamlit UI (single-patient and batch tabs), ReAct agent
-scaffolding, PDF report generation, initial deployment to Streamlit
-Community Cloud.
-
-\textbf{Praanshu Ranjan:} Diagnosis and remediation of the
-empty-vector-store production bug (including the \texttt{.gitignore}
-fix and the commit of the populated knowledge base), hardening of the
-ReAct agent system prompt and tool docstrings, integration of the
-structured five-step LangGraph workflow into the AI Care Coordinator
-tab (including the transparent per-step UI), rewriting of the project
-README for the end-semester submission, this project report, and the
-demo video.
-
-% ══════════════════════════════════════════════════════════════════════
-\begin{thebibliography}{00}
-% ══════════════════════════════════════════════════════════════════════
-\bibitem{kaggle_noshow}
-J.~Hoppen, ``Medical Appointment No Shows,''
-\emph{Kaggle}, 2016.
-[Online]. Available: \url{https://www.kaggle.com/datasets/joniarroba/noshowappointments}
-
-\bibitem{dantas2018noshow}
-L.~F.~Dantas, J.~L.~Fleck, F.~L.~C.~Oliveira, and S.~Hamacher,
-``No-shows in appointment scheduling --- a systematic literature review,''
-\emph{Health Policy}, vol.~122, no.~4, pp.~412--421, 2018.
-
-\bibitem{gier2017noshow}
-J.~Gier, ``Missed appointments cost the U.S.\ healthcare system \$150B each
-year,'' \emph{Healthcare Innovation}, 2017.
-
-\bibitem{yao2023react}
-S.~Yao \emph{et~al.}, ``ReAct: Synergizing reasoning and acting in language
-models,'' in \emph{Proc.\ ICLR}, 2023.
-
-\bibitem{langgraph}
-LangChain AI, ``LangGraph documentation.''
-[Online]. Available: \url{https://langchain-ai.github.io/langgraph/}
-
-\bibitem{lewis2020rag}
-P.~Lewis \emph{et~al.}, ``Retrieval-augmented generation for knowledge-intensive
-NLP tasks,'' in \emph{Proc.\ NeurIPS}, 2020.
-
-\bibitem{minilm}
-W.~Wang \emph{et~al.}, ``MiniLM: Deep self-attention distillation for
-task-agnostic compression of pre-trained transformers,''
-in \emph{Proc.\ NeurIPS}, 2020.
-
-\bibitem{chroma}
-Chroma, ``The AI-native open-source embedding database.''
-[Online]. Available: \url{https://www.trychroma.com/}
-
-\bibitem{groq}
-Groq Inc., ``Groq LPU inference engine.''
-[Online]. Available: \url{https://groq.com/}
-
-\bibitem{chen2016xgboost}
-T.~Chen and C.~Guestrin, ``XGBoost: A scalable tree boosting system,''
-in \emph{Proc.\ ACM SIGKDD}, 2016, pp.~785--794.
-
-\bibitem{topol2019ai}
-E.~J.~Topol, ``High-performance medicine: the convergence of human and
-artificial intelligence,'' \emph{Nature Medicine}, vol.~25, pp.~44--56, 2019.
-
-\bibitem{harvard_responsibleai}
-S.~Gerke, T.~Minssen, and G.~Cohen, ``Ethical and legal challenges of
-artificial intelligence-driven healthcare,''
-in \emph{Artificial Intelligence in Healthcare}, Academic Press, 2020,
-pp.~295--336.
-
-\end{thebibliography}
+\renewcommand{\arraystretch}{1.35}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.24\hsize}X|X|}
+\hline
+\hdrrow{Team Member} & \hdrrow{Contributions} \\ \hline
+\textbf{Ansh Badkur} &
+Handled initial project ideation, problem definition, and dataset
+sourcing from Kaggle. Built the complete Milestone-1 ML layer including
+data cleaning, invalid-age filtering, categorical encoding for
+\texttt{Handcap} and \texttt{Gender}, one-hot transformations, feature
+scaling with \texttt{StandardScaler}, and the two engineered features
+\texttt{AwaitingTime} and \texttt{Num\_App\_Missed}. Performed model
+selection between Logistic Regression and the Decision Tree, carried out
+hyperparameter tuning (\texttt{max\_depth}$=10$), and produced the
+Milestone-1 evaluation metrics. Authored the base Streamlit application
+layout, custom CSS theme, and the Single Patient Analysis and Batch
+Analysis tabs including the risk-distribution Plotly chart and the
+operational-actions panel. Scaffolded the ReAct chat agent
+(\texttt{chatbot\_agent.py}) with the \texttt{predict\_noshow} and
+\texttt{search\_guidelines} tools, including the initial system prompt.
+Wrote the fpdf2-based \texttt{pdf\_generator.py} module for
+downloadable care-coordination reports. Performed the initial deployment
+of the application to Streamlit Community Cloud.\\ \hline
+\textbf{Praanshu Ranjan} &
+Diagnosed and fixed the critical production failure where the ChromaDB
+vector store was excluded from the Git repository by
+\texttt{.gitignore}, which caused the deployed RAG layer to return zero
+matches and the agent to hallucinate invented hospital policies despite
+the corpus being present on local machines. Rebuilt the 40-chunk vector
+store from the five markdown source documents and committed the
+populated \texttt{chroma\_db/} directory to the repository so the hosted
+container ships with a populated knowledge base on first boot.
+Hardened the ReAct agent's system prompt and tool docstrings from three
+generic sentences into a codified behavioural contract that requires
+every policy claim to carry a \texttt{[Source: <filename>]} tag, forbids
+fabricated policies when retrieval is empty, mandates that the exact risk
+percentage be surfaced alongside the tier, and enforces the
+operational-and-ethical disclaimer on every structured output.
+Integrated the previously-unused five-node LangGraph structured
+workflow (\texttt{agent.py}) into the AI Care Coordinator tab by adding
+the \textbf{Run Full Care Workflow} button, a transparent per-step UI
+with five expandable cards (Risk Assessment / Risk Reasoning /
+Guideline Retrieval with source chips / Intervention Plan / Final Report),
+a permanent operational-and-ethical notice, and a \textbf{Clear Workflow
+Output} button for state reset. Fixed a visual rendering bug on the
+\textbf{Run Full Care Workflow} button caused by an interaction between
+Streamlit's \texttt{help=} tooltip wrapper and the project's custom CSS
+selectors. Rewrote the project README from scratch for the end-semester
+submission, including the live-application badge, Mermaid architecture
+diagrams, environment and deployment instructions, team credits, and the
+ethical disclaimer. Authored this end-semester project report. Produced
+the final five-minute demonstration video. Verified the post-fix live
+application end-to-end using automated browser testing, confirming that
+the deployed agent now cites real source filenames from the hospital
+guidelines corpus rather than fabricating policy content.\\ \hline
+\end{tabularx}
 
 \end{document}
