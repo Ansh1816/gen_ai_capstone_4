@@ -1176,7 +1176,9 @@ with tab_agent:
         run_workflow_btn = st.button(
             "Run Full Care Workflow",
             key="run_workflow_btn",
-            help="Executes the 5-step structured agent: Risk Assessment → Risk Reasoning → Guideline Retrieval (RAG) → Intervention Plan → Final Report",
+        )
+        st.caption(
+            "5-step structured agent: Risk Assessment → Risk Reasoning → Guideline Retrieval (RAG) → Intervention Plan → Final Report"
         )
         if run_workflow_btn:
             patient_data = {
