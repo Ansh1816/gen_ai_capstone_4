@@ -13,8 +13,8 @@
 \usepackage{helvet}
 \renewcommand{\familydefault}{\sfdefault}
 
-\usepackage{xcolor}
-\usepackage{colortbl}
+\usepackage[table]{xcolor}
+\usepackage{amsmath,amssymb}
 \usepackage{array}
 \usepackage{tabularx}
 \usepackage{longtable}
@@ -60,7 +60,10 @@
 }
 
 % ── Table helpers ────────────────────────────────────────────────────────
-\newcommand{\hdrrow}[1]{\rowcolor{navy}\textcolor{white}{\textbf{#1}}}
+% \hdrrow is the *cell* formatter; row colour must be applied once per row
+% with \rowcolor{navy} BEFORE the first cell.
+\newcommand{\hdrrow}[1]{\textcolor{white}{\textbf{#1}}}
+\newcommand{\hdrline}{\rowcolor{navy}}
 \arrayrulecolor{black!20}
 \setlength{\arrayrulewidth}{0.4pt}
 
@@ -150,7 +153,7 @@ hosted agent is grounded from the first boot.
 \renewcommand{\arraystretch}{1.35}
 \begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
 \hline
-\hdrrow{Attribute} & \hdrrow{Details} \\ \hline
+\hdrline \hdrrow{Attribute} & \hdrrow{Details} \\ \hline
 Data Source        & Kaggle — Medical Appointment No Shows (May 2016) \\ \hline
 Total Records      & 110{,}527 \\ \hline
 Total Features     & 14 (after one-hot and feature engineering) \\ \hline
@@ -168,7 +171,7 @@ visit. The eleven raw input features are listed below.
 \vspace{8pt}
 \begin{tabularx}{\textwidth}{|>{\hsize=0.34\hsize}X|>{\hsize=0.22\hsize}X|X|}
 \hline
-\hdrrow{Feature} & \hdrrow{Type} & \hdrrow{Description} \\ \hline
+\hdrline \hdrrow{Feature} & \hdrrow{Type} & \hdrrow{Description} \\ \hline
 \texttt{PatientId}        & Identifier  & Unique identifier for the patient. \\ \hline
 \texttt{AppointmentID}    & Identifier  & Unique identifier for the appointment. \\ \hline
 \texttt{Gender}           & Categorical & Patient gender (F / M). \\ \hline
@@ -224,7 +227,7 @@ resulting binary indicators avoid imposing any false ordinal relationship.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|X|>{\hsize=0.3\hsize}X|}
 \hline
-\hdrrow{Feature} & \hdrrow{Categories} & \hdrrow{Encoding} \\ \hline
+\hdrline \hdrrow{Feature} & \hdrrow{Categories} & \hdrrow{Encoding} \\ \hline
 \texttt{Handcap}  & 0, 1, 2, 3, 4 & \texttt{Handicap\_0..4} (one-hot)\\ \hline
 \texttt{Gender}   & F, M          & \texttt{Gender\_F, Gender\_M} \\ \hline
 \texttt{No-show}  & No, Yes       & 0, 1 \\ \hline
@@ -282,7 +285,7 @@ relationships, and trends within the dataset before model training.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.45\hsize}X|X|}
 \hline
-\hdrrow{Observation} & \hdrrow{Interpretation} \\ \hline
+\hdrline \hdrrow{Observation} & \hdrrow{Interpretation} \\ \hline
 Longer lead time $\to$ higher no-show rate   & Patients forget, reschedule mentally, or lose motivation. \\ \hline
 Prior no-show history $\to$ higher risk      & Past behaviour is the strongest signal for future behaviour. \\ \hline
 Younger age bracket $\to$ higher no-show     & Young adults disengage from preventive scheduling. \\ \hline
@@ -371,7 +374,7 @@ the original exploration notebook but not used in production.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
 \hline
-\hdrrow{Hyperparameter} & \hdrrow{Value} \\ \hline
+\hdrline \hdrrow{Hyperparameter} & \hdrrow{Value} \\ \hline
 \texttt{max\_depth}         & 10 \\ \hline
 \texttt{criterion}          & \texttt{gini} \\ \hline
 \texttt{random\_state}      & 0 (for reproducibility) \\ \hline
@@ -390,30 +393,38 @@ training code path.
 
 \subsection{Feature Importance Results}\label{sec:feature_importance}
 
-The Decision Tree's feature-importance ranking is shown below. The top
-three features (\texttt{Num\_App\_Missed}, \texttt{AwaitingTime},
-\texttt{Age}) together account for the dominant portion of the predictive
-power --- a result that agrees with the EDA observations and with the
-published literature on appointment attendance.
+The trained Decision Tree assigns importance scores as fractional
+contributions to split-gain across all nodes of the tree. The ranking
+extracted directly from the persisted \texttt{model.pkl} artefact is
+shown below. Three features (\texttt{AwaitingTime},
+\texttt{Age}, \texttt{Num\_App\_Missed}) together account for roughly
+94\% of the total predictive power --- a result consistent with the EDA
+observations and with the published literature on appointment attendance.
 
-\begin{tabularx}{\textwidth}{|>{\hsize=0.08\hsize}X|>{\hsize=0.3\hsize}X|>{\hsize=0.17\hsize}X|X|}
+\begin{tabularx}{\textwidth}{|>{\hsize=0.08\hsize}X|>{\hsize=0.28\hsize}X|>{\hsize=0.20\hsize}X|X|}
 \hline
-\hdrrow{Rank} & \hdrrow{Feature} & \hdrrow{Importance} & \hdrrow{Interpretation} \\ \hline
-1 & \texttt{Num\_App\_Missed}   & Highest   & Prior behaviour dominates — the single strongest signal. \\ \hline
-2 & \texttt{AwaitingTime}        & Very high & Lead-time proxy for forgetting / disengagement. \\ \hline
-3 & \texttt{Age}                 & High      & Age segment correlates with attendance habits. \\ \hline
-4 & \texttt{SMS\_received}       & Medium    & Reminder dispatch — small but consistent effect. \\ \hline
-5 & \texttt{Scholarship}         & Medium    & Socio-economic proxy. \\ \hline
-6 & \texttt{Hipertension}        & Low       & Chronic condition slightly lowers no-show risk. \\ \hline
-7 & \texttt{Diabetes}            & Low       & Chronic condition slightly lowers no-show risk. \\ \hline
-8 & \texttt{Handicap\_0..4}      & Low       & Disability level has weak standalone effect. \\ \hline
-9 & \texttt{Gender\_F}, \texttt{Gender\_M} & Very low & Gender effect is small, consistent with literature. \\ \hline
+\hdrline \hdrrow{Rank} & \hdrrow{Feature} & \hdrrow{Importance} & \hdrrow{Interpretation} \\ \hline
+1  & \texttt{AwaitingTime}     & \textbf{69.48\%} & Lead-time dominates --- the longer the gap, the higher the forget / disengagement risk. \\ \hline
+2  & \texttt{Age}              & \textbf{15.42\%} & Younger age segments show materially higher no-show rates. \\ \hline
+3  & \texttt{Num\_App\_Missed} & \textbf{9.17\%}  & Behavioural history --- prior misses compound future risk. \\ \hline
+4  & \texttt{SMS\_received}    & 2.15\%           & Reminder dispatch --- small but consistent effect. \\ \hline
+5  & \texttt{Scholarship}      & 1.15\%           & Socio-economic proxy (transport / financial barriers). \\ \hline
+6  & \texttt{Hipertension}     & 0.71\%           & Chronic condition slightly lowers no-show risk. \\ \hline
+7  & \texttt{Gender\_F}        & 0.65\%           & Gender effect is weak, consistent with literature. \\ \hline
+8  & \texttt{Diabetes}         & 0.59\%           & Chronic condition slightly lowers no-show risk. \\ \hline
+9  & \texttt{Gender\_M}        & 0.28\%           & (see above) \\ \hline
+10 & \texttt{Handicap\_1..4}   & $<$0.2\% each    & Disability level has weak standalone effect. \\ \hline
 \end{tabularx}
 
 \vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert the bar chart of the trained
-Decision Tree's top-10 feature importances here as
-\texttt{fig\_feature\_importance.png}.}
+The dominance of \texttt{AwaitingTime} (69\%) together with \texttt{Age}
+(15\%) and \texttt{Num\_App\_Missed} (9\%) --- the three engineered and
+behavioural signals --- confirms the design choice to include the two
+derived features discussed in Section~3.5.
+
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig_feature_importance.png}
+\end{center}
 
 % ══════════════════════════════════════════════════════════════════════
 \section{Model Evaluation}
@@ -421,47 +432,64 @@ Decision Tree's top-10 feature importances here as
 
 \subsection{Performance Metrics}
 
-The Decision Tree was evaluated on the 25\% stratified holdout split.
-Because the target is heavily imbalanced ($\sim$80\% show-ups), raw accuracy
-is a weak indicator and the minority-class metrics (precision, recall,
-F1) are the operationally meaningful numbers.
+The Decision Tree was evaluated on the 25\% stratified holdout split
+(27{,}630 appointments). Because the target is heavily imbalanced
+($\sim$20\% no-show rate), raw accuracy is a weak indicator and the
+minority-class metrics are the operationally meaningful numbers.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.4\hsize}X|X|}
 \hline
-\hdrrow{Metric} & \hdrrow{Value (holdout, minority class = no-show)} \\ \hline
-Overall Accuracy         & $\sim$76--78\% \\ \hline
-Precision (no-show)      & $\sim$0.30--0.38 \\ \hline
-Recall (no-show)         & $\sim$0.25--0.33 \\ \hline
-F1 (no-show)             & $\sim$0.30--0.36 \\ \hline
-Null-model baseline      & $\sim$80\% (always predict ``showed up'') \\ \hline
+\hdrline \hdrrow{Metric} & \hdrrow{Value (holdout, minority class = no-show)} \\ \hline
+Overall Accuracy            & \textbf{79.88\%} \\ \hline
+Precision (no-show)         & \textbf{0.5117} \\ \hline
+Recall (no-show)            & \textbf{0.0742} \\ \hline
+F1 (no-show)                & \textbf{0.1296} \\ \hline
+ROC-AUC                     & \textbf{0.7260} \\ \hline
+True Negatives (TN)         & 21{,}656 (show-ups correctly predicted) \\ \hline
+False Positives (FP)        & 395    (show-ups incorrectly flagged as risky) \\ \hline
+False Negatives (FN)        & 5{,}165 (missed no-shows --- primary gap) \\ \hline
+True Positives (TP)         & 414    (no-shows correctly caught) \\ \hline
+Null-model baseline         & $\sim$80\% (always predict ``showed up'') \\ \hline
 \end{tabularx}
 
 \vspace{6pt}
-Accuracy of 76--78\% only marginally underperforms the null classifier in
-raw terms --- but the null classifier has \emph{zero} recall on the
-minority class, which is exactly the class the operations team cares
-about. The Decision Tree captures roughly one-in-three true no-shows, and
-the tier-mapping layer (Section~\ref{sec:tiering}) converts the
-probability output into an operationally actionable signal rather than
-relying on the raw classification decision.
+The precision of 0.51 means that when the model flags a patient as a
+likely no-show, it is correct slightly more than half the time ---
+usable for operational outreach prioritisation. The recall of 0.074
+tells the honest story: the model only catches about 7\% of actual
+no-shows, leaving a large false-negative population.
+This is a known limitation of an uncalibrated baseline Decision Tree on
+a heavily imbalanced dataset and is called out in
+Section~\ref{sec:limitations} as the primary area for future improvement
+(class-weighted training, threshold calibration, gradient-boosted
+ensembles). The ROC-AUC of 0.726 indicates that the probability output
+still has meaningful ordinal ranking ability --- which is exactly what
+the tier-mapping layer (Section~\ref{sec:tiering}) exploits, rather than
+relying on the raw 0.5 classification threshold.
 
 \subsection{Confusion Matrix Analysis}
 
-The confusion matrix on the holdout split exhibits the expected pattern
-for a heavily imbalanced classifier: a very large true-negative count
-(patients correctly predicted to attend), a large number of true
-positives relative to the minority base rate, a moderate false-positive
-count (patients flagged for outreach who would have attended anyway ---
-operationally tolerable), and a non-trivial false-negative count
-(missed predictions of actual no-shows --- the main area for future
-improvement).
+The confusion matrix on the holdout split is shown below. The pattern
+is characteristic of a heavily-imbalanced classifier trained without
+class weighting: a very large true-negative block (21{,}656 show-ups
+correctly predicted), a small false-positive cell (395 --- clinically
+tolerable, staff would have attempted outreach for these patients
+anyway), a substantial false-negative cell (5{,}165 missed no-shows ---
+the main gap), and a small true-positive cell (414 no-shows correctly
+caught).
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert the confusion-matrix
-visualisation here as \texttt{fig\_confusion\_matrix.png}.}
+\begin{center}
+\includegraphics[width=0.7\textwidth]{fig_confusion_matrix.png}
+\end{center}
 
-The false-negative rate is the primary area for future improvement,
-either through class-weighted training or threshold calibration.
+The 51.2\% precision for the no-show class is the most operationally
+meaningful result --- when the system flags a patient for outreach
+effort, it is correct more often than it is wrong, which keeps the
+signal-to-noise ratio above the threshold required for front-desk
+staff to act on it. The false-negative rate of approximately 92\%
+(5{,}165 of 5{,}579 actual no-shows missed) is the primary area for
+future improvement, addressable through class-weighted training or
+threshold calibration (see Section~\ref{sec:limitations}).
 
 \subsection{Risk Tiering}\label{sec:tiering}
 
@@ -472,9 +500,7 @@ by the rest of the system:
 \renewcommand{\arraystretch}{1.25}
 \begin{tabular}{|c|c|l|}
 \hline
-\rowcolor{navy}\textcolor{white}{\textbf{Tier}} &
-\rowcolor{navy}\textcolor{white}{\textbf{Probability}} &
-\rowcolor{navy}\textcolor{white}{\textbf{Outreach Rule}} \\ \hline
+\hdrline \hdrrow{Tier} & \hdrrow{Probability} & \hdrrow{Outreach Rule} \\ \hline
 LOW    & $p < 0.30$               & Standard 48-hour SMS confirmation. \\ \hline
 MEDIUM & $0.30 \le p < 0.55$      & Personalised SMS plus optional courtesy call. \\ \hline
 HIGH   & $p \ge 0.55$             & Mandatory phone call $\ge$24h pre-appointment. \\ \hline
@@ -503,16 +529,15 @@ $\to$ \textbf{LLM Risk Reasoning} $\to$ \textbf{RAG Retrieval} $\to$
 \textbf{UI Rendering}}}
 \vspace{8pt}
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert the system architecture
-diagram here as \texttt{fig\_architecture.png}. A reference diagram is
-already described in the project README using Mermaid syntax.}
+\begin{center}
+\includegraphics[width=0.98\textwidth]{fig_architecture.png}
+\end{center}
 
 \subsection{Technology Stack}
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.35\hsize}X|X|}
 \hline
-\hdrrow{Layer} & \hdrrow{Technology / Tool} \\ \hline
+\hdrline \hdrrow{Layer} & \hdrrow{Technology / Tool} \\ \hline
 ML Classifier         & scikit-learn \texttt{DecisionTreeClassifier} (\texttt{max\_depth}=10) \\ \hline
 Data Handling         & pandas, numpy \\ \hline
 Agent Orchestration   & LangGraph --- stateful \texttt{StateGraph} with \texttt{AgentState} \texttt{TypedDict} \\ \hline
@@ -533,7 +558,7 @@ Secrets Management    & python-dotenv (local) + Streamlit Cloud \texttt{st.secre
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.32\hsize}X|X|}
 \hline
-\hdrrow{Module / File} & \hdrrow{Responsibility} \\ \hline
+\hdrline \hdrrow{Module / File} & \hdrrow{Responsibility} \\ \hline
 \texttt{app.py}                 & Streamlit entry point. Three tabs (Single Patient, Batch, AI Care Coordinator), custom CSS, ML tool calls, structured-workflow renderer, chat loop, PDF export. \\ \hline
 \texttt{model\_brain.py}        & Offline training script. Preprocessing, \texttt{DecisionTreeClassifier} training, artefact serialisation to \texttt{model.pkl} / \texttt{scaler.pkl} / \texttt{feature\_cols.pkl}. \\ \hline
 \texttt{agent.py}               & Structured five-node LangGraph \texttt{StateGraph}: \texttt{risk\_assessment} $\to$ \texttt{risk\_reasoning} $\to$ \texttt{guideline\_retrieval} $\to$ \texttt{intervention\_plan} $\to$ \texttt{report\_generation}. Defines \texttt{AgentState} \texttt{TypedDict} and exports \texttt{run\_agent()}. \\ \hline
@@ -577,7 +602,7 @@ shared state automatically.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.36\hsize}X|X|}
 \hline
-\hdrrow{State Group} & \hdrrow{Fields} \\ \hline
+\hdrline \hdrrow{State Group} & \hdrrow{Fields} \\ \hline
 Input                & \texttt{patient\_data} (dict of age, gender, awaiting, sms, \ldots) \\ \hline
 ML Prediction        & \texttt{risk\_score} (float), \texttt{risk\_tier} (str), \texttt{risk\_color} (str) \\ \hline
 Risk Reasoning       & \texttt{risk\_analysis} (str), \texttt{risk\_factors} (list) \\ \hline
@@ -683,10 +708,12 @@ CITATION & HALLUCINATION RULES (strict):
   disclaimer.
 \end{lstlisting}
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert a screenshot of the AI Care
-Coordinator chat tab with a live conversation here as
-\texttt{fig\_chat.png}.}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig_chat.jpg}
+\end{center}
+\vspace{2pt}
+\begin{center}\small\textit{AI Care Coordinator chat --- live capture of a
+policy query answered with source citations.}\end{center}
 
 % ══════════════════════════════════════════════════════════════════════
 \section{RAG Pipeline Explanation}
@@ -724,7 +751,7 @@ sentences, then words --- preserving semantic coherence.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|>{\hsize=0.22\hsize}X|X|}
 \hline
-\hdrrow{Parameter} & \hdrrow{Value} & \hdrrow{Rationale} \\ \hline
+\hdrline \hdrrow{Parameter} & \hdrrow{Value} & \hdrrow{Rationale} \\ \hline
 \texttt{chunk\_size}     & 500 characters  & Balances context richness against embedding noise. \\ \hline
 \texttt{chunk\_overlap}  & 80 characters   & Preserves context across chunk boundaries. \\ \hline
 \texttt{separators}      & Markdown first  & Splits on \texttt{\textbackslash n\#\#\ }, \texttt{\textbackslash n\#\#\#\ }, \texttt{\textbackslash n-\ }, blank lines. \\ \hline
@@ -802,7 +829,7 @@ specific failure mode.
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.23\hsize}X|>{\hsize=0.4\hsize}X|X|}
 \hline
-\hdrrow{Guardrail} & \hdrrow{Mechanism} & \hdrrow{Failure Mode Prevented} \\ \hline
+\hdrline \hdrrow{Guardrail} & \hdrrow{Mechanism} & \hdrrow{Failure Mode Prevented} \\ \hline
 Input Guardrail        & UI-level range and type checks on all nine patient fields (age, lead time, disability level, booleans, \ldots).                                          & Malformed data reaching the ML model. \\ \hline
 Retrieval Guardrail    & \texttt{search\_guidelines} returns an explicit empty-fallback string when the retriever finds zero matches.                                             & Agent operating with an empty context. \\ \hline
 Citation Guardrail     & System prompt requires every policy claim to carry a \texttt{[Source: <filename>]} tag matching the tool output.                                           & Policy statements without provenance. \\ \hline
@@ -854,9 +881,12 @@ A \textbf{Hospital Policy References} panel and a \textbf{Notice
 Disclaimer} complete the tab, and the user can download a plain-text
 patient action plan.
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert a screenshot of the Single
-Patient Analysis tab here as \texttt{fig\_single\_patient.png}.}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig_single_patient.jpg}
+\end{center}
+\vspace{2pt}
+\begin{center}\small\textit{Single Patient Analysis tab --- live capture:
+65 y/o female, 30-day lead time, hypertension and diabetes present.}\end{center}
 
 \subsection{Batch Analysis Tab}
 
@@ -878,9 +908,12 @@ The tab renders:
 \item An exportable \textbf{Full Risk Report CSV}.
 \end{itemize}
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert a screenshot of the Batch
-Analysis tab here as \texttt{fig\_batch.png}.}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig_batch.jpg}
+\end{center}
+\vspace{2pt}
+\begin{center}\small\textit{Batch Analysis tab --- live capture of the
+CSV upload area and instruction card.}\end{center}
 
 \subsection{AI Care Coordinator Tab (Structured Workflow + Chat)}
 
@@ -916,16 +949,20 @@ A permanent \emph{Operational \& Ethical Notice} card is rendered beneath
 the five steps, and a \textbf{Clear Workflow Output} button resets the
 session state.
 
-\vspace{6pt}
-\textit{\textbf{Figure placeholder:} insert a screenshot of the AI Care
-Coordinator tab with the structured workflow expanded here as
-\texttt{fig\_workflow.png}.}
+\begin{center}
+\includegraphics[width=0.95\textwidth]{fig_workflow.jpg}
+\end{center}
+\vspace{2pt}
+\begin{center}\small\textit{Structured 5-step care workflow --- live
+capture of the AI Care Coordinator tab after clicking
+\textbf{Run Full Care Workflow}, with Step 3 (Guideline Retrieval)
+expanded.}\end{center}
 
 \subsection{Deployment Targets}
 
 \begin{tabularx}{\textwidth}{|>{\hsize=0.3\hsize}X|X|}
 \hline
-\hdrrow{Platform} & \hdrrow{Configuration} \\ \hline
+\hdrline \hdrrow{Platform} & \hdrrow{Configuration} \\ \hline
 Local             & \texttt{python-dotenv} for \texttt{GROQ\_API\_KEY}; \texttt{streamlit run app.py} on \texttt{localhost:8501}. \\ \hline
 Streamlit Cloud   & \texttt{st.secrets} for \texttt{GROQ\_API\_KEY}; pre-built \texttt{chroma\_db/} committed to repo; auto-redeploy on every push to \texttt{main}. \\ \hline
 Hugging Face Spaces & Optional alternative --- YAML header in \texttt{README.md} configures the Space; secrets added in Space Settings. \\ \hline
@@ -965,6 +1002,42 @@ levels:
 \end{itemize}
 
 % ══════════════════════════════════════════════════════════════════════
+\section{Limitations and Future Work}\label{sec:limitations}
+% ══════════════════════════════════════════════════════════════════════
+
+\textbf{Minority-class recall.} The baseline Decision Tree is trained
+without class-weighting and consequently catches only $\sim$7.4\% of
+actual no-shows. Class-weighted training, probability-threshold
+calibration, or a gradient-boosted ensemble (XGBoost / LightGBM with
+\texttt{scale\_pos\_weight}) would tighten this materially. The
+tier-mapping threshold in the agentic layer partially compensates by
+converting raw probability into ordinal bins rather than using the
+default 0.5 cut-off, but improving the underlying classifier is the
+primary future-work item.
+
+\textbf{LLM capacity.} The free-tier
+\texttt{llama-3.1-8b-instant} model occasionally truncates long
+structured outputs, particularly during the Step-5 report-generation
+stage. A larger model (Llama~3.1 70B, or a paid-tier completion) would
+smooth this out at higher cost per query.
+
+\textbf{Corpus coverage.} Five markdown documents are sufficient to
+demonstrate RAG end-to-end but are unlikely to cover every
+hospital-specific operational policy. Future deployments should index
+the full operations manual and add a \emph{freshness} check that flags
+stale guidelines for periodic human review.
+
+\textbf{Retrieval evaluation.} We evaluate retrieval qualitatively
+through the live-verification case study. A formal evaluation with a
+held-out query-to-chunk labelled set (hit@$k$, nDCG) is future work.
+
+\textbf{Missing operational features.} The original capstone brief
+mentions \emph{Department} and \emph{Day/Time} as intended features.
+The Kaggle V2 dataset does not expose department; day-of-week could be
+engineered from \texttt{AppointmentDay} and would be a cheap future
+addition, as would an encoded hour-of-day bucket.
+
+% ══════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 % ══════════════════════════════════════════════════════════════════════
 
@@ -1000,9 +1073,15 @@ applications where explainability and auditability are non-negotiable.
 % ══════════════════════════════════════════════════════════════════════
 
 \renewcommand{\arraystretch}{1.35}
-\begin{tabularx}{\textwidth}{|>{\hsize=0.24\hsize}X|X|}
+\setlength{\LTpre}{0pt}
+\setlength{\LTpost}{0pt}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.65\textwidth}|}
 \hline
-\hdrrow{Team Member} & \hdrrow{Contributions} \\ \hline
+\hdrline \hdrrow{Team Member} & \hdrrow{Contributions} \\ \hline
+\endfirsthead
+\hline
+\hdrline \hdrrow{Team Member} & \hdrrow{Contributions (cont'd)} \\ \hline
+\endhead
 \textbf{Ansh Badkur} &
 Handled initial project ideation, problem definition, and dataset
 sourcing from Kaggle. Built the complete Milestone-1 ML layer including
@@ -1053,6 +1132,6 @@ the final five-minute demonstration video. Verified the post-fix live
 application end-to-end using automated browser testing, confirming that
 the deployed agent now cites real source filenames from the hospital
 guidelines corpus rather than fabricating policy content.\\ \hline
-\end{tabularx}
+\end{longtable}
 
 \end{document}

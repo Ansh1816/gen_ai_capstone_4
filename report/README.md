@@ -1,79 +1,84 @@
 # End-Sem Project Report
 
-Word/Docs-style technical report, restructured to match a top-graded reference
-report. Single column, navy-blue section headers, navy-blue table headers,
-sans-serif body, 14 numbered sections, no academic bibliography.
+Word/Docs-style 23-page technical report. Single-column, navy-blue section
+headers and table headers, sans-serif body, 14 numbered sections, no
+academic bibliography. Styled to match a previously top-graded reference
+report.
 
-## Build on Overleaf (recommended, 2 min)
+## Ready-to-submit PDF
 
-1. Open https://www.overleaf.com/ and sign in.
-2. **New Project → Upload Project** → drop `report.tex`.
-3. Click **Recompile**. First build takes ~10 seconds.
-4. **Download PDF**.
+[`report.pdf`](report.pdf) — 741 KiB, 23 A4 pages, fully compiled with all
+figures and screenshots embedded. This is the file you submit.
 
-All packages used (`helvet`, `xcolor`, `colortbl`, `titlesec`, `tabularx`,
-`longtable`, `hyperref`, `tikz`, `listings`, `graphicx`) ship with Overleaf
-by default — no extra setup.
+## What's inside
 
-## Local compile
+1. Abstract
+2. Dataset Summary (attribute + feature tables)
+3. Data Cleaning and Preprocessing (age, encoding, scaling, derived features)
+4. Exploratory Data Analysis (key observations + visual insights)
+5. Model Selection and Training — **includes real feature-importance bar chart**
+6. Model Evaluation — **real holdout metrics (Accuracy 79.88%, Precision 0.51, Recall 0.07, F1 0.13, ROC-AUC 0.73) and real confusion-matrix heatmap**
+7. System Architecture — **includes matplotlib architecture diagram**
+8. Agentic Workflow Explanation (AgentState schema, 5-step pipeline, ReAct agent)
+9. RAG Pipeline Explanation (incl. the deployment hazard finding)
+10. Guardrail Architecture (5-layer table)
+11. Deployment and User Interface — **includes 4 live-app screenshots** (single patient, batch, chat, structured workflow)
+12. Limitations and Future Work
+13. Conclusion
+14. **Team Contributions** — two detailed paragraphs, Praanshu's work itemised
+
+## Figures (all embedded in `report.pdf`)
+
+| File | Source |
+|---|---|
+| `fig_architecture.png` | Matplotlib-rendered 4-layer system architecture diagram |
+| `fig_feature_importance.png` | Bar chart generated directly from the persisted `model.pkl`'s `feature_importances_` |
+| `fig_confusion_matrix.png` | Real 2×2 matrix from retraining on the Kaggle V2 25%-holdout split |
+| `fig_single_patient.jpg` | Live capture of the Single Patient Analysis tab |
+| `fig_batch.jpg` | Live capture of the Batch Analysis tab |
+| `fig_chat.jpg` | Live capture of the AI Care Coordinator chat with a policy question and a source-cited answer |
+| `fig_workflow.jpg` | Live capture of the Run Full Care Workflow structured output with Step 3 expanded |
+
+Plus [`metrics.json`](metrics.json) with the exact holdout metrics computed
+during the run.
+
+## Rebuild the PDF
+
+### Overleaf (easiest)
+
+Upload `report.tex` plus all `fig_*.png` and `fig_*.jpg` files to an
+Overleaf project → Recompile → Download PDF.
+
+### Local with Tectonic (recommended)
+
+```bash
+brew install tectonic              # one time
+cd report
+tectonic report.tex                # ~15 s, pulls packages on demand
+```
+
+### Local with TeX Live
 
 ```bash
 cd report
 pdflatex report.tex
-pdflatex report.tex    # run twice so cross-references resolve
+pdflatex report.tex                # second pass to resolve cross-refs
 ```
 
-## What's inside (14 sections)
+## Regenerate the charts
 
-1. Abstract
-2. Dataset Summary
-3. Data Cleaning and Preprocessing
-4. Exploratory Data Analysis
-5. Model Selection and Training
-6. Model Evaluation
-7. System Architecture (Technology Stack + Module Structure)
-8. Agentic Workflow Explanation (AgentState schema, 5-step pipeline, ReAct chat)
-9. RAG Pipeline Explanation (incl. the **deployment hazard finding**)
-10. Guardrail Architecture
-11. Deployment and User Interface (all 3 tabs documented)
-12. Practical Implications
-13. Conclusion
-14. **Team Contributions** — two detailed paragraphs, Praanshu's work itemised
+If you edit the ML model, re-run the chart generator:
 
-## Screenshots to add before final submission
-
-The report has **six figure placeholders** (italic `[Figure placeholder: …]`
-boxes). Before submitting, capture these PNGs and drop them into `report/`.
-Then delete the placeholder paragraph and uncomment the `\includegraphics`
-line directly above it.
-
-| Placeholder | Filename expected | How to capture |
-|---|---|---|
-| §5.3 Feature Importance bar chart | `fig_feature_importance.png` | Run `model_brain.py` locally and add a matplotlib `plt.barh` of `tree.feature_importances_` (or grab from `genaicapstone.py` line 171-177). |
-| §6.2 Confusion Matrix heatmap | `fig_confusion_matrix.png` | Add `metrics.confusion_matrix(y_test, y_pred)` to `model_brain.py` and plot with seaborn. |
-| §7 System Architecture diagram | `fig_architecture.png` | Export the Mermaid diagram from the project README via https://mermaid.live/ (copy Mermaid, paste, export PNG). |
-| §8.3 Chat screenshot | `fig_chat.png` | Open the live app → AI Care Coordinator → type a question → screenshot. |
-| §11.1 Single Patient Analysis tab | `fig_single_patient.png` | Live app → Single Patient Analysis tab → fill a patient → Analyse → screenshot. |
-| §11.2 Batch Analysis tab | `fig_batch.png` | Live app → Batch Analysis tab after uploading a CSV → screenshot of KPIs + chart. |
-| §11.3 Structured Workflow card | `fig_workflow.png` | Live app → AI Care Coordinator → Run Full Care Workflow → expand Step 3 → screenshot. |
-
-To insert a screenshot, find the placeholder in `report.tex` that looks like:
-
-```latex
-\textit{\textbf{Figure placeholder:} insert the system architecture
-diagram here as \texttt{fig\_architecture.png}.}
+```bash
+source ../venv/bin/activate
+python3 /tmp/gen_figures.py        # rebuilds fig_architecture, fig_feature_importance, fig_confusion_matrix
 ```
 
-and replace the whole paragraph with:
+(The script lives at `/tmp/gen_figures.py` — copy to the repo if you want
+to version-control it.)
 
-```latex
-\begin{center}
-  \includegraphics[width=0.95\textwidth]{fig_architecture.png}
-\end{center}
-```
+## Regenerate screenshots
 
-## Reference style source
-
-The structure and visual style follow a previously top-graded end-sem
-report on a different topic (credit-risk scoring). All content and
-technical details are specific to this project.
+The four app screenshots were captured via an automated browser run against
+the live Streamlit app. If the UI changes, re-capture by screenshotting the
+relevant tab manually and overwriting the corresponding `fig_*.jpg`.
