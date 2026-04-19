@@ -1168,10 +1168,30 @@ with tab_agent:
         st.markdown('<div class="card-header"><span class="card-header-bar"></span>ACTION OPTIONS</div>', unsafe_allow_html=True)
         
         analyze_btn = st.button("Analyze This Patient", key="analyze_patient_btn")
-        
+
         from pdf_generator import create_pdf_report
         from chatbot_agent import predict_noshow
-        
+
+        # NEW — Run the full 5-step LangGraph care workflow on this patient
+        run_workflow_btn = st.button(
+            "Run Full Care Workflow",
+            key="run_workflow_btn",
+            help="Executes the 5-step structured agent: Risk Assessment → Risk Reasoning → Guideline Retrieval (RAG) → Intervention Plan → Final Report",
+        )
+        if run_workflow_btn:
+            patient_data = {
+                "age": ag_age, "gender": ag_gender, "awaiting": ag_awaiting,
+                "sms": ag_sms, "hipert": ag_hipert, "diab": ag_diab,
+                "schol": ag_schol, "hcap": ag_hcap, "prev_miss": ag_prev,
+            }
+            with st.spinner("Running 5-step care workflow (risk → reasoning → RAG → plan → report)..."):
+                try:
+                    from agent import run_agent
+                    st.session_state.workflow_result = run_agent(patient_data)
+                except Exception as e:
+                    st.session_state.workflow_result = None
+                    st.error(f"Workflow failed: {e}")
+
         if st.button("Generate & Download PDF Report", key="pdf_btn"):
             with st.spinner("Generating PDF..."):
                 try:
@@ -1211,11 +1231,114 @@ with tab_agent:
                     
         st.markdown('</div>', unsafe_allow_html=True)  # close card
 
-    # ── RIGHT: AGENT CHAT ─────────────────────────────────────────
+    # ── RIGHT: AGENT CHAT + (optionally) STRUCTURED WORKFLOW OUTPUT ──
     with agent_right:
+
+        # ── STRUCTURED 5-STEP WORKFLOW RESULTS (renders above the chat) ──
+        wf = st.session_state.get("workflow_result")
+        if wf:
+            tier = wf.get("risk_tier", "UNKNOWN")
+            color = wf.get("risk_color", "#64748b")
+            pct = wf.get("risk_score", 0.0) * 100
+            tier_cls = {"LOW": "tier-low", "MEDIUM": "tier-medium", "HIGH": "tier-high"}.get(tier, "tier-medium")
+
+            st.markdown('<div class="card" style="border-left:4px solid #dc2626;">', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="card-header"><span class="card-header-bar"></span>STRUCTURED CARE WORKFLOW — 5 STEPS</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Produced by the LangGraph workflow in agent.py. Each step's output is shown transparently so you can see the agent's reasoning."
+            )
+
+            # STEP 1 — Risk Assessment (ML)
+            with st.expander(f"Step 1 · Risk Assessment (ML)  ·  {pct:.1f}% — {tier}", expanded=True):
+                st.markdown(
+                    f"""
+                    <div style="display:flex; align-items:center; gap:18px;">
+                      <div class="risk-pct" style="color:{color};">{pct:.1f}%</div>
+                      <div class="risk-tier-badge {tier_cls}">
+                        <div class="tier-dot" style="background:{color};"></div>
+                        {tier} RISK
+                      </div>
+                    </div>
+                    <div style="margin-top:10px; color:#475569; font-size:0.85rem;">
+                      Computed by the trained Decision Tree model ({len(wf.get('patient_data', {}))} features).
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            # STEP 2 — Risk Reasoning (LLM)
+            with st.expander("Step 2 · Risk Factor Analysis (LLM reasoning)", expanded=True):
+                st.markdown(wf.get("risk_analysis", "_No analysis produced._"))
+
+            # STEP 3 — Guideline Retrieval (RAG from ChromaDB)
+            guidelines = wf.get("retrieved_guidelines", []) or []
+            with st.expander(f"Step 3 · Guideline Retrieval (RAG · {len(guidelines)} matches)", expanded=True):
+                if not guidelines:
+                    st.warning(
+                        "No guidelines retrieved. If this is unexpected, rebuild the vector store: "
+                        "`python build_vectorstore.py`."
+                    )
+                else:
+                    seen_sources = []
+                    chips_html = ""
+                    for g in guidelines:
+                        src = g.get("source", "Unknown")
+                        if src not in seen_sources:
+                            seen_sources.append(src)
+                            chips_html += f'<span class="guideline-chip">{src}</span>'
+                    st.markdown(
+                        f'<div style="margin-bottom:10px;">Sources consulted: {chips_html}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    for i, g in enumerate(guidelines, start=1):
+                        st.markdown(
+                            f"""
+                            <div class="guideline-block">
+                              <div style="font-size:0.72rem; font-weight:700; color:#3b82f6; margin-bottom:6px;">
+                                #{i} · [Source: {g.get('source', 'Unknown')}]
+                              </div>
+                              <div>{g.get('content', '')}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
+
+            # STEP 4 — Intervention Plan (LLM)
+            with st.expander("Step 4 · Intervention Plan (LLM, grounded in retrieved guidelines)", expanded=True):
+                st.markdown(wf.get("intervention_plan", "_No plan produced._"))
+
+            # STEP 5 — Final Report
+            with st.expander("Step 5 · Final Structured Report", expanded=False):
+                st.markdown(wf.get("final_report", "_No report produced._"))
+
+            # Ethical disclaimer — always visible for this workflow
+            st.markdown(
+                """
+                <div class="disclaimer" style="margin-top:14px;">
+                  <b>Operational & Ethical Notice:</b> This workflow is an AI-powered decision-support tool.
+                  Predictions are probabilistic and based on historical patterns. All retrieved guidelines come
+                  from the hospital's own policy corpus and are cited by source above. Review every recommendation
+                  with qualified administrative staff before taking operational action. This system does not
+                  provide medical advice.
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Clear button so the user can dismiss the workflow and return to chat
+            if st.button("Clear Workflow Output", key="clear_workflow_btn"):
+                st.session_state.pop("workflow_result", None)
+                st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)  # close card
+            st.markdown("---")
+
         # We cannot wrap native st components dynamically with HTML, so we just add a header native
         st.subheader("AI Advisor Chat")
-        st.caption("Converse with the agent or click 'Analyze This Patient' on the left to inject context automatically.")
+        st.caption("Converse with the agent or click 'Analyze This Patient' or 'Run Full Care Workflow' on the left.")
         
         # Initialize chat history
         if "messages" not in st.session_state:
