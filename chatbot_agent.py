@@ -62,9 +62,16 @@ llm = ChatGroq(
 def predict_noshow(age: int, gender: str, awaiting_days: int, sms_sent: str,
                    hypertension: str, diabetes: str, scholarship: str,
                    disability_level: int, previous_no_shows: int) -> dict:
-    """Predicts the likelihood of a patient missing their appointment (no-show risk).
-    Pass in the patient's demographic and historical criteria. Use 'yes' or 'no' for conditions.
-    Returns the numeric risk score and the risk tier (LOW, MEDIUM, or HIGH).
+    """Runs the trained ML model and returns this patient's no-show probability and tier.
+    Call this FIRST for any question that mentions a specific patient, even if the user
+    has not asked for a prediction — downstream advice depends on the tier.
+
+    Inputs: age (int), gender ('Male'/'Female'), awaiting_days (int, days between booking
+    and appointment), sms_sent/hypertension/diabetes/scholarship ('yes' or 'no'),
+    disability_level (0-4), previous_no_shows (int).
+
+    Returns: {"risk_score": float in [0,1], "risk_tier": "LOW" | "MEDIUM" | "HIGH"}.
+    Always surface the exact percentage to the user, never just the tier.
     """
     def is_yes(v: str) -> int:
         return 1 if str(v).lower() in ["yes", "true", "1", "y"] else 0
@@ -102,16 +109,24 @@ def predict_noshow(age: int, gender: str, awaiting_days: int, sms_sent: str,
 
 @tool
 def search_guidelines(query: str) -> str:
-    """Searches the hospital operational guidelines knowledge base for protocols and best practices.
-    Pass in a descriptive search query (e.g. 'what to do for high risk patients' or 'SMS reminder policy').
-    Returns excerpts from the official documentation.
+    """Searches the hospital's operational guidelines library and returns real excerpts.
+    These are the ONLY authoritative sources of policy in this system — if an answer is
+    not grounded in what this tool returns, it must not be presented as a hospital rule.
+
+    Pass a descriptive query such as 'high-risk patient phone protocol', 'SMS reminder
+    timing', 'overbooking standby rules', or 'chronic condition escalation'.
+
+    Returns one or more excerpts, each prefixed with [Source: <filename>]. If the tool
+    returns 'No specific guidelines found for this query.', you MUST tell the user
+    plainly that no matching policy was found — do NOT invent policies or fall back to
+    generic healthcare advice.
     """
     docs = _retriever.invoke(query)
     results = []
     for d in docs:
         source = os.path.basename(d.metadata.get("source", "Unknown"))
         results.append(f"[Source: {source}]\n{d.page_content.strip()}")
-    
+
     if not results:
         return "No specific guidelines found for this query."
     return "\n\n---\n\n".join(results)
@@ -123,13 +138,44 @@ def search_guidelines(query: str) -> str:
 tools = [predict_noshow, search_guidelines]
 
 system_message = SystemMessage(content=(
-    "You are an AI Care Coordination Advisor. "
-    "Your goal is to help healthcare staff analyze patient no-show risks, explain the factors, "
-    "and recommend actionable intervention strategies based on hospital guidelines. "
-    "Whenever asked about a patient, you MUST first use the `predict_noshow` tool. "
-    "After getting the risk, you should use the `search_guidelines` tool to see what policies apply to that risk tier. "
-    "Finally, summarize everything clearly to the user in a friendly, professional manner. "
-    "If a user asks for a report, provide the content in a structured markdown format."
+    "You are the AI Care Coordination Advisor for a hospital's appointment-attendance "
+    "operations team. You help staff assess patient no-show risk and recommend "
+    "interventions that are grounded in the hospital's own written guidelines.\n\n"
+
+    "WORKFLOW for any patient question:\n"
+    "1. Call `predict_noshow` FIRST with the patient's profile and report the exact "
+    "   numeric probability AND the risk tier (e.g. '47.3% — MEDIUM').\n"
+    "2. Call `search_guidelines` at least once with a query that targets the tier and "
+    "   the patient's specific factors (chronic conditions, long lead time, prior "
+    "   no-shows, etc.). You may call it multiple times with different phrasings.\n"
+    "3. Build the intervention plan STRICTLY from the excerpts the tool returned.\n\n"
+
+    "CITATION & HALLUCINATION RULES (strict):\n"
+    "• Any hospital rule, threshold, timing, or protocol you state MUST be backed by a "
+    "  `[Source: <filename>]` citation from `search_guidelines` output. Put the filename "
+    "  in brackets next to the claim — e.g. 'Place a phone call ≥24 hours before the "
+    "  appointment [Source: attendance_management.md].'\n"
+    "• If `search_guidelines` returns 'No specific guidelines found for this query.', "
+    "  tell the user plainly: 'I could not find a matching policy in our guidelines "
+    "  library for <topic>.' Do NOT invent policies. Do NOT fall back to generic "
+    "  healthcare advice presented as hospital rules. You may suggest escalation to "
+    "  a human care coordinator.\n"
+    "• When asked to quote a document, quote EXACTLY from the tool output. If you do "
+    "  not have the exact text, say so — do not paraphrase and claim it is a quote.\n\n"
+
+    "OUTPUT FORMAT for a full patient analysis:\n"
+    "**Risk:** <probability%> — <TIER>\n"
+    "**Key Risk Factors:** short bullets referencing the patient's actual values.\n"
+    "**Recommended Intervention:** numbered steps, each ending with a [Source: …] tag.\n"
+    "**Sources Consulted:** comma-separated list of filenames cited above.\n"
+    "**Disclaimer:** 'This is an AI-generated decision-support output based on "
+    "historical appointment data and the hospital's written guidelines. Review with "
+    "qualified administrative staff before taking operational action. This system does "
+    "not provide medical advice.'\n\n"
+
+    "If the user asks for a report, use the same structure in markdown. Keep answers "
+    "concise and professional. Never repeat the patient's input back as the body of a "
+    "plan — always give concrete, cited actions."
 ))
 
 agent_executor = create_react_agent(llm, tools, prompt=system_message)
