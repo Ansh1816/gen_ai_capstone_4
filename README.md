@@ -29,54 +29,86 @@ intervention plan.
 
 ## System architecture
 
-```mermaid
-flowchart LR
-    subgraph UI["Streamlit UI (app.py)"]
-        T1[Single Patient]
-        T2[Batch Analysis]
-        T3[AI Care Coordinator]
-    end
-
-    subgraph ML["ML Prediction Module"]
-        M[Decision Tree<br/>+ StandardScaler]
-    end
-
-    subgraph AGENT["Agentic Layer"]
-        CA[ReAct Agent<br/>chatbot_agent.py]
-        SG[5-Step LangGraph Workflow<br/>agent.py]
-    end
-
-    subgraph RAG["RAG Layer"]
-        DOCS[guidelines/*.md]
-        VS[ChromaDB<br/>MiniLM embeddings]
-    end
-
-    T1 --> M
-    T2 --> M
-    T3 --> CA
-    T3 --> SG
-    CA --> M
-    CA --> VS
-    SG --> M
-    SG --> VS
-    DOCS -- build_vectorstore.py --> VS
-```
-
-### The 5-step care workflow (LangGraph StateGraph, `agent.py`)
+> **Full walk-through:** [`docs/architecture.md`](docs/architecture.md) · alternate PNG/SVG/DOT renders in [`report/`](report/)
 
 ```mermaid
-flowchart LR
-    S([START]) --> A[risk_assessment<br/>ML prediction]
-    A --> B[risk_reasoning<br/>LLM analysis]
-    B --> C[guideline_retrieval<br/>RAG over ChromaDB]
-    C --> D[intervention_plan<br/>LLM, grounded in retrieved docs]
-    D --> E[report_generation<br/>Structured final output]
-    E --> F([END])
+flowchart TD
+    %% Native GitHub theme adaptation
+    classDef default fill:transparent,stroke:#52525B,stroke-width:1px,rx:6px,ry:6px;
+    classDef ui fill:transparent,stroke:#3b82f6,stroke-width:2px,rx:6px,ry:6px;
+    classDef ext fill:transparent,stroke:#8b5cf6,stroke-width:2px,stroke-dasharray: 4 4,rx:6px,ry:6px;
+    classDef agent fill:transparent,stroke:#14b8a6,stroke-width:2px,rx:6px,ry:6px;
+    classDef util fill:transparent,stroke:#64748b,stroke-width:2px,rx:6px,ry:6px;
+    classDef gate fill:transparent,stroke:#f59e0b,stroke-width:2px,rx:6px,ry:6px;
+
+    %% UI routing
+    UI[Streamlit UI<br/>single · batch · coordinator]:::ui -->|Single Patient / Batch tab| ML[DecisionTreeClassifier<br/>model.pkl]:::util
+    UI -->|Run Full Care Workflow| RA
+    UI -->|Chat message| REACT[ReAct Agent<br/>chatbot_agent.py]:::agent
+    UI -->|Generate & Download PDF| PDF
+
+    %% 5-Step LangGraph Workflow pod
+    subgraph Workflow [5-Step Care Workflow · agent.py]
+        RA[risk_assessment]:::util --> TIER{risk_tier<br/>0.30 / 0.55}:::gate
+        TIER -->|LOW · MEDIUM · HIGH| RR[risk_reasoning]:::agent
+        RR --> GR[guideline_retrieval]:::util
+        GR --> HALL{retrieval empty?}:::gate
+        HALL -->|docs found| IP[intervention_plan]:::agent
+        HALL -.->|zero docs| REFUSE[inform user<br/>no invented policy]:::gate
+        IP --> CIT{carries<br/>Source tag?}:::gate
+        CIT -->|yes| RG[report_generation]:::agent
+        CIT -.->|no| IP
+        RG --> FIN([structured output<br/>+ disclaimer]):::util
+    end
+    style Workflow fill:none,stroke:#52525B,stroke-width:1px,stroke-dasharray:5 5,color:#A1A1AA
+
+    %% RAG Pipeline pod (offline + runtime)
+    subgraph RAG [RAG Pipeline · build_vectorstore.py]
+        DOCS[(guidelines/*.md<br/>5 policy documents)]:::util --> CHUNK[RecursiveCharacterTextSplitter<br/>chunk=500 · overlap=80]:::util
+        CHUNK --> EMBED[all-MiniLM-L6-v2<br/>384-d embeddings]:::util
+        EMBED --> CHROMA[(ChromaDB<br/>40 chunks · persisted in-repo)]:::ext
+    end
+    style RAG fill:none,stroke:#52525B,stroke-width:1px,stroke-dasharray:5 5,color:#A1A1AA
+
+    %% Cross-pod retrieval
+    GR -.->|top-k=5 similarity| CHROMA
+    REACT -.->|search_guidelines tool| CHROMA
+    REACT -.->|predict_noshow tool| ML
+
+    %% LLM backend
+    GROQ[(Groq Cloud<br/>llama-3.1-8b-instant<br/>free tier)]:::ext
+    RR -.->|temp 0.3| GROQ
+    IP -.->|temp 0.3| GROQ
+    RG -.->|temp 0.3| GROQ
+    REACT -.->|reasoning loop| GROQ
+
+    %% Output
+    FIN --> PDF[pdf_generator.py<br/>fpdf2]:::util
+
+    %% Interactivity — click nodes to jump into the repo
+    click UI "./app.py" "Streamlit UI entry point"
+    click ML "./model_brain.py" "DecisionTreeClassifier training + inference"
+    click RA "./agent.py" "Node 1 — feature build + predict_proba"
+    click TIER "./agent.py" "Thresholds 0.30 and 0.55 set the tier"
+    click RR "./agent.py" "Node 2 — LLM risk-factor analysis"
+    click GR "./agent.py" "Node 3 — top-5 chunks from Chroma"
+    click HALL "./chatbot_agent.py" "Empty-retrieval fallback string"
+    click IP "./agent.py" "Node 4 — grounded intervention plan"
+    click CIT "./chatbot_agent.py" "Citation guardrail — every claim tagged"
+    click RG "./agent.py" "Node 5 — final structured report + disclaimer"
+    click REFUSE "./chatbot_agent.py" "System prompt blocks invented policies"
+    click REACT "./chatbot_agent.py" "ReAct agent with predict_noshow + search_guidelines"
+    click DOCS "./guidelines/" "5 hospital-operations markdown files"
+    click CHUNK "./build_vectorstore.py" "Markdown-aware splitter"
+    click EMBED "./build_vectorstore.py" "HuggingFace sentence-transformers on CPU"
+    click CHROMA "./chroma_db/" "Committed so the hosted app ships populated"
+    click PDF "./pdf_generator.py" "Downloadable audit report"
+    click GROQ "https://groq.com" "Free-tier Llama 3.1 8B inference"
 ```
 
-Each node updates an explicit `AgentState` (`TypedDict`) carrying the patient's
-profile, the risk score and tier, the retrieved guideline excerpts with source
-filenames, the LLM-generated plan, and the final report.
+**Legend** — blue = user surface · teal = LLM agent node · slate = deterministic processing · amber = gate / guardrail · purple dashed = external service. Every node on the diagram is clickable and jumps to the file that implements it.
+
+Each workflow node updates an explicit `AgentState` (`TypedDict`) carrying the patient's profile, the risk score and tier, the retrieved guideline excerpts with source filenames, the LLM-generated plan, and the final report.
 
 ---
 
@@ -112,6 +144,9 @@ filenames, the LLM-generated plan, and the final report.
 ├── model.pkl               # Trained Decision Tree
 ├── scaler.pkl              # Fitted StandardScaler
 ├── feature_cols.pkl        # Feature-column order (14 cols)
+├── docs/
+│   └── architecture.md     # Full architecture walk-through with interactive diagram
+├── report/                 # LaTeX report, PDF, diagrams (PNG/SVG/DOT), demo video script
 ├── requirements.txt
 └── README.md
 ```
