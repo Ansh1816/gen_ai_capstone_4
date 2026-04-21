@@ -43,7 +43,8 @@ flowchart TD
     end
     style RAG fill:none,stroke:#52525B,stroke-width:1px,stroke-dasharray:5 5,color:#A1A1AA
 
-    %% Cross-pod retrieval
+    %% Cross-pod retrieval and ML calls
+    RA -.->|predict_proba| ML
     GR -.->|top-k=5 similarity| CHROMA
     REACT -.->|search_guidelines tool| CHROMA
     REACT -.->|predict_noshow tool| ML

@@ -49,7 +49,7 @@ flowchart TB
     T3 --> SG
     T3 --> RA
 
-    S1 -.-> ML
+    S1 -.->|predict_proba| ML
     S2 -.-> LLM
     S3 -.-> Chroma
     S4 -.-> LLM

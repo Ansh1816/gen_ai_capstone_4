@@ -195,21 +195,26 @@ In architecture terms: **UI → Workflow pod (5 nodes, 3 amber gates)
 
 #### Flow E — User clicks "Generate & Download PDF Report"
 
-Shortest non-trivial flow on the diagram.
+Shortest non-trivial flow on the diagram. Note that **pdf_generator
+itself does not talk to the ML layer** — the UI handler is the one
+making the prediction, exactly the same way Tab 1 does.
 
-1. The UI packs the patient form into a payload and follows the
-   *"Generate & Download PDF"* arrow straight to **pdf_generator**.
-2. pdf_generator needs a risk number, so it makes a side-trip along
-   the dashed *"predict_noshow tool"* arrow to the **ML layer** for
-   the probability and tier.
-3. It assembles the PDF — patient summary, risk box, plan text, and
-   the ethical disclaimer.
-4. The finished PDF returns to the UI and the browser downloads it.
+1. The UI follows the same *"Single Patient / Batch tab"* dashed
+   arrow (via the `predict_noshow` tool) to the **ML layer** to get
+   the patient's probability and tier.
+2. The UI grabs the most recent assistant message from the chat as
+   the plan body (defaulting to a placeholder if the chat is empty).
+3. The UI then follows the *"Generate & Download PDF"* arrow to
+   **pdf_generator**, handing it the pre-computed risk numbers and
+   the plan text.
+4. pdf_generator assembles the PDF — patient summary, risk box, plan
+   text, and the ethical disclaimer — and hands the file back.
+5. The finished PDF travels back to the UI and the browser downloads it.
 
-The PDF button **does not** re-run the full Workflow pod by itself —
-it reuses whichever chat message or plan is already on screen. For a
-fully grounded, citation-backed PDF, the user should run Flow D first
-and then click the PDF button.
+The PDF button **does not** re-run the full Workflow pod — it reuses
+whichever chat message or plan is already on screen. For a fully
+grounded, citation-backed PDF, the user should run Flow D first and
+then click the PDF button.
 
 ---
 
@@ -232,6 +237,61 @@ After this one-time run, Flows C and D can hit a populated ChromaDB
 instantly — no rebuilding required.
 
 ---
+
+### Q. If the Decision Tree already gives a risk number, why do we need the `risk_tier` gate?
+
+The Decision Tree outputs a **continuous probability between 0 and 1**
+— a number like 0.47 or 0.81. That number on its own is not
+operationally actionable. A clinic administrator cannot act on 0.47.
+
+The `risk_tier` gate converts that raw probability into a **human
+label** — LOW, MEDIUM, or HIGH — using two pre-agreed thresholds
+(0.30 and 0.55). Those thresholds are *deliberately* aligned with the
+outreach protocol in `attendance_management.md`, so the moment the
+gate assigns a tier, the downstream retrieval step knows exactly
+which policy tier to pull guidelines from.
+
+Put differently: the Decision Tree outputs *evidence*; the gate
+outputs a *decision*. They are two different things.
+
+### Q. If ChromaDB is called only once, why do we have **two** gates after it?
+
+Because the two gates guard **two different things**:
+
+- The **retrieval-empty gate** (`HALL`, first amber diamond) checks
+  the *input* to the LLM — did the vector store give us any evidence
+  to ground the plan in? If the retriever returns zero documents, the
+  agent has nothing to cite and must refuse.
+- The **Source-tag gate** (`CIT`, second amber diamond) checks the
+  *output* of the LLM — after the LLM wrote the plan, did it actually
+  include `[Source: filename]` citations for every policy claim?
+
+So the two gates protect against two different failure modes:
+
+| Gate | Failure it prevents |
+|---|---|
+| `HALL` (retrieval empty) | The LLM is given no evidence at all and hallucinates policy from training data. |
+| `CIT` (Source tag missing) | The LLM is given evidence but ignores it and writes uncited claims anyway. |
+
+Both can happen independently — retrieval could return five excellent
+chunks and the LLM could still produce an uncited plan. In the
+current implementation, `CIT` is enforced by the hardened system
+prompt (the LLM is told explicitly to cite every claim). The dashed
+`no` arrow looping back to `intervention_plan` represents a
+"re-ask until cited" guardrail that we plan to harden further.
+
+### Q. The PDF generator doesn't have an arrow to the ML layer — how does it get the risk number?
+
+It doesn't. **The UI is the one calling the ML layer, not the PDF
+generator.** When the user clicks the PDF button, the UI first
+follows the same arrow that Tab 1 uses (the
+`predict_noshow`-tool / dashed arrow into the ML layer), gets the
+probability and tier back, and then hands those numbers plus a
+plan-text body to `pdf_generator` along the solid *"Generate &
+Download PDF"* arrow.
+
+The PDF generator is a pure formatter — it takes data in and emits a
+PDF. It does not reach back into the model by itself.
 
 ### Q. Why two agents instead of one?
 
@@ -265,17 +325,95 @@ matters for audit logs.
 
 Given the project's emphasis is on the **agentic layer** (end-sem rubric is 35% agentic, with an explicit note that "traditional ML/DL alone is NOT sufficient"), we spent our complexity budget on the agent, not on a deeper classifier.
 
+### Q. What is Random Forest, and why didn't you use it?
+
+**Random Forest in one sentence.** It's an **ensemble of many
+Decision Trees** — typically between 100 and 1{,}000 trees — whose
+votes are averaged to produce the final prediction. Each tree sees a
+random sample of the rows *and* a random subset of the features,
+which forces the trees to disagree in useful ways. The averaged
+prediction is usually more accurate and more stable than any single
+tree.
+
+**How it differs from a single Decision Tree.**
+
+| | Single Decision Tree | Random Forest |
+|---|---|---|
+| Number of trees | 1 | 100+ |
+| Variance | High (overfits small data patterns) | Low (averaging cancels the noise) |
+| Interpretability | Easy — you can print and read it | Hard — 100 trees is a black box |
+| Inference speed | Microseconds | Slower by the number of trees |
+| Memory | Tiny (~75 KB) | Bigger by the number of trees |
+
+**Why we stuck with a single Decision Tree for *this* project.**
+
+1. **Interpretability** — we can print one feature-importance ranking
+   and show it in the report. A forest's importance is an average
+   across trees — fine for a statistician, less convincing for a
+   clinic administrator.
+2. **Inference budget** — the model is invoked as a *tool* by the
+   LLM agent. A microsecond call keeps the agent snappy; a forest
+   call would visibly slow the workflow.
+3. **Rubric focus** — the end-sem rubric rewards the agentic layer
+   (35%), not raw ML performance. Spending complexity on a forest
+   would not change the final grade much, but spending it on the
+   agent visibly does.
+4. **Honest future-work note** — a class-weighted Random Forest or
+   XGBoost would probably lift minority-class recall by a few points.
+   If a grader pushes, say so: *"It's a one-evening experiment; we
+   prioritised the agentic layer instead."*
+
 ### Q. Why `max_depth=10`?
 
 Shallow enough to avoid overfitting 100K+ rows, deep enough to capture feature interactions like *young + long lead + prior miss*. Empirically, test accuracy plateaus around depth 10 and falls past depth 15 due to overfitting. It's also what the original exploration notebook converged on.
 
-### Q. What about class imbalance? ~80% show-up / 20% no-show.
+### Q. What is "balanced" vs "unbalanced" data, and why didn't you use `class_weight='balanced'`?
 
-Three responses:
+**The concept.**
 
-1. **We didn't use `class_weight='balanced'`** because we treat the probability output, not the class label, as the primary artefact. The UI tiers the probability into LOW / MEDIUM / HIGH, so the threshold is explicit, not hidden inside the classifier.
-2. **We report minority-class metrics** (precision, recall, F1 on the "no-show" class) in addition to accuracy — because a null model that always predicts "show up" already gets ~80%.
-3. **Operationally**, the tier map is calibrated to the outreach guidelines in `attendance_management.md` — 0.30 triggers SMS, 0.55 triggers a phone call. The tier is what matters, not the raw class.
+- A dataset is **balanced** when the classes appear in roughly equal
+  proportions — e.g. 50% show-ups and 50% no-shows.
+- A dataset is **unbalanced** (or *imbalanced*) when one class
+  dominates — in our case, **~80% show-ups and ~20% no-shows**.
+
+**Why imbalance is a problem.**
+
+A classifier trained on imbalanced data has an easy cheat: always
+predict the majority class. On our dataset, a model that predicts
+"patient will show up" for every single row gets 80% accuracy without
+learning anything. It has **zero useful recall** on the minority
+(no-show) class — which is the only class the clinic cares about.
+
+**Three standard fixes.**
+
+1. **`class_weight='balanced'`** — a scikit-learn one-liner. During
+   training it inversely weights each class by its frequency, so the
+   model pays ~4× more attention to each no-show than to each
+   show-up.
+2. **Over/under-sampling** — duplicate minority rows (SMOTE) or drop
+   majority rows so the training set becomes balanced.
+3. **Threshold calibration** — train normally and then choose the
+   decision threshold explicitly (e.g. "call the patient if
+   probability > 0.55").
+
+**Why we chose option 3 (threshold calibration) over `class_weight`.**
+
+- We never use `predict()` (hard class). We always use
+  `predict_proba()` (probability), because the downstream UI and
+  agent consume the *tier* (LOW/MEDIUM/HIGH), not the class.
+- The tier thresholds (0.30 and 0.55) are already our calibration knob,
+  and they are *deliberately aligned* with the outreach guidelines in
+  `attendance_management.md`. Adding `class_weight='balanced'` would
+  shift those probabilities and we'd have to re-calibrate the
+  thresholds anyway.
+- We report minority-class metrics (precision, recall, F1 on the
+  no-show class) alongside accuracy so the imbalance is never hidden.
+
+**Honest caveat.** If the grader pushes on this: it's a one-line
+change and we'd run both side-by-side as a follow-up experiment. The
+likely outcome is higher recall at the cost of lower precision —
+useful if the clinic prefers to over-call rather than miss true
+no-shows.
 
 ### Q. What features did you use?
 
@@ -355,6 +493,51 @@ strong retrieval on short technical passages. A bigger model (e.g.
 `bge-large`) would improve retrieval quality a few points but wouldn't
 fit in the memory budget alongside sentence-transformers, ChromaDB,
 Streamlit, and the agents.
+
+### Q. What is the difference between **encoding** and **embedding**?
+
+They both turn something non-numeric into numbers, but they answer
+very different questions.
+
+**Encoding — structural conversion.**
+A fixed lookup from a category to a number. No learning involved. The
+numbers are arbitrary placeholders; two categories with similar
+numbers are *not* necessarily similar in meaning.
+
+- *One-hot encoding* — each category becomes a separate binary column.
+  e.g. `Gender` → `Gender_F = [1,0]`, `Gender_M = [0,1]`. This is what
+  we used for the ML features in our project.
+- *Label encoding* — each category is mapped to a single integer
+  (A → 0, B → 1, C → 2, …). Cheap, but imposes a false ordering.
+
+**Embedding — learned semantic vector.**
+A **dense vector of real numbers** (e.g. 384 numbers per piece of
+text) produced by a **trained neural network**. The coordinates are
+chosen so that *semantically similar inputs are close together* in
+vector space. You cannot read an individual dimension — the meaning
+lives in the geometry.
+
+- *Sentence embedding* — what our RAG pipeline uses.
+  `all-MiniLM-L6-v2` turns each 500-character chunk of a guideline
+  document into a 384-dimensional vector. *"SMS reminder policy for
+  medium-risk patients"* and *"how do we remind patients before an
+  appointment?"* produce **similar** vectors even though they share
+  few words.
+
+**One-line summary.**
+
+| | Encoding | Embedding |
+|---|---|---|
+| Purpose | Structural (categorical → numeric) | Semantic (meaning → geometry) |
+| Learned? | No, it's a fixed lookup | Yes, from a trained model |
+| Dimensions | Usually ≤ number of categories | Hundreds (e.g. 384) |
+| Similar meanings → similar numbers? | No | Yes |
+| Example in our project | `Gender_F`, `Gender_M`, `Handicap_0..4` | ChromaDB's 384-d vectors of guideline chunks |
+
+**Why both appear in our project.**
+Encoding prepares the *tabular* patient features for the Decision
+Tree. Embedding powers the *semantic* search over the policy
+documents. They coexist because they solve different problems.
 
 ### Q. Why chunk size 500 with overlap 80?
 
