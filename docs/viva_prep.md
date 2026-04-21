@@ -358,7 +358,7 @@ matters for audit logs.
 
 ### Q. Why Decision Tree? Why not Logistic Regression / Random Forest / XGBoost?
 
-**Logistic Regression** was the natural baseline and we actually compared against it (see `genaicapstone.py`). But appointment data has strong non-linear interactions — e.g. *long lead time AND prior no-show AND on scholarship* is much worse than any of those three alone. Logistic regression assumes an additive form and misses those.
+**Logistic Regression** was the natural baseline and we compared against it during exploration. But appointment data has strong non-linear interactions — e.g. *long lead time AND prior no-show AND on scholarship* is much worse than any of those three alone. Logistic regression assumes an additive form and misses those.
 
 **Random Forest / XGBoost** would almost certainly squeeze a bit more accuracy from the minority class. We didn't pick them because:
 - **Interpretability** — a single Decision Tree gives feature importances we can show in the UI and cite in the report. A forest is harder to explain to a clinic administrator.

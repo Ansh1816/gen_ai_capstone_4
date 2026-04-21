@@ -157,12 +157,7 @@ Five enforcement points, four of which are drawn as amber gates above:
 
 ---
 
-## Alternate renders
+## Static render used by the LaTeX report
 
-If your viewer does not support Mermaid, the same architecture is available as
-a high-resolution PNG and SVG in the `report/` directory:
-
-- [`report/fig_architecture_graphviz.png`](../report/fig_architecture_graphviz.png) — 200-DPI PNG
-- [`report/fig_architecture_graphviz.svg`](../report/fig_architecture_graphviz.svg) — scalable vector
-- [`report/fig_architecture.dot`](../report/fig_architecture.dot) — Graphviz source
-- [`report/fig_architecture.mmd`](../report/fig_architecture.mmd) — plain Mermaid source
+The LaTeX project report embeds the matplotlib-rendered version at
+[`report/fig_architecture.png`](../report/fig_architecture.png).
