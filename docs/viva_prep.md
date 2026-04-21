@@ -238,21 +238,45 @@ instantly — no rebuilding required.
 
 ---
 
+### Q. What is a "threshold"?
+
+A threshold is just a **cut-off number** — a line that separates one
+thing from another.
+
+- Everyday example: *"anyone above 18 can vote."* The number 18 is a
+  threshold. Below 18 you can't vote; above 18 you can.
+- In our project: the Decision Tree gives every patient a number
+  between 0 and 1 that says *"how likely is this patient to miss the
+  appointment?"*
+  - 0.05 = very unlikely
+  - 0.47 = unclear
+  - 0.87 = very likely
+
+But a number alone doesn't tell the front-desk staff what to **do**,
+so we use **two cut-off lines** to turn it into three buckets with
+three different actions.
+
+| Model's number | Bucket (tier) | What the clinic does |
+|---|---|---|
+| Less than **0.30** | LOW    | Send the usual automated SMS only |
+| Between **0.30** and **0.55** | MEDIUM | Personal SMS + maybe a courtesy call |
+| More than **0.55** | HIGH   | Call the patient to confirm |
+
+**0.30** and **0.55** are the two thresholds. They're just cut-offs.
+We didn't invent them — they come straight from the outreach protocol
+in `attendance_management.md`.
+
 ### Q. If the Decision Tree already gives a risk number, why do we need the `risk_tier` gate?
 
-The Decision Tree outputs a **continuous probability between 0 and 1**
-— a number like 0.47 or 0.81. That number on its own is not
-operationally actionable. A clinic administrator cannot act on 0.47.
+The Decision Tree gives us a **continuous probability** — a number
+like 0.47. That number is **evidence**. It is not a decision.
 
-The `risk_tier` gate converts that raw probability into a **human
-label** — LOW, MEDIUM, or HIGH — using two pre-agreed thresholds
-(0.30 and 0.55). Those thresholds are *deliberately* aligned with the
-outreach protocol in `attendance_management.md`, so the moment the
-gate assigns a tier, the downstream retrieval step knows exactly
-which policy tier to pull guidelines from.
+The `risk_tier` gate takes the probability and applies the two
+thresholds above to produce a **decision** — LOW, MEDIUM, or HIGH —
+which the downstream retrieval step then uses to pull the right
+policy.
 
-Put differently: the Decision Tree outputs *evidence*; the gate
-outputs a *decision*. They are two different things.
+**Tree outputs evidence. Gate outputs a decision.** Two different jobs.
 
 ### Q. If ChromaDB is called only once, why do we have **two** gates after it?
 
@@ -347,73 +371,123 @@ tree.
 
 **Why we stuck with a single Decision Tree for *this* project.**
 
-1. **Interpretability** — we can print one feature-importance ranking
-   and show it in the report. A forest's importance is an average
-   across trees — fine for a statistician, less convincing for a
-   clinic administrator.
+1. **Interpretability — what this actually means.** After training,
+   you can ask a Decision Tree *"which features mattered most for
+   your predictions?"* and it hands you back a clean ranked list:
+   ```
+   1. AwaitingTime     — 35 %
+   2. Num_App_Missed   — 30 %
+   3. Age              — 10 %
+   4. SMS_received     —  8 %
+   5. ...
+   ```
+   One tree, one clear list — easy to put in the report, easy to
+   defend to a professor. A Random Forest is 100+ trees, each with
+   its own ranking; to explain the forest you have to average all
+   100 rankings together. That average is still useful, but no single
+   tree inside the forest can walk you through its reasoning.
+   **Simple analogy:** one tree is one doctor's opinion — you can ask
+   them to explain it. A forest is 100 doctors voting — you know
+   what the group thinks, but no single doctor can show you the logic.
 2. **Inference budget** — the model is invoked as a *tool* by the
-   LLM agent. A microsecond call keeps the agent snappy; a forest
-   call would visibly slow the workflow.
+   LLM agent on every turn. A single tree takes microseconds; 100
+   trees take visibly longer.
 3. **Rubric focus** — the end-sem rubric rewards the agentic layer
-   (35%), not raw ML performance. Spending complexity on a forest
-   would not change the final grade much, but spending it on the
-   agent visibly does.
-4. **Honest future-work note** — a class-weighted Random Forest or
-   XGBoost would probably lift minority-class recall by a few points.
-   If a grader pushes, say so: *"It's a one-evening experiment; we
+   (35 %), not raw ML performance. Spending complexity on a forest
+   would not change the grade much; spending it on the agent does.
+4. **Honest future-work note** — a class-weighted Random Forest would
+   probably lift minority-class recall by a few points. If a grader
+   pushes, just say: *"One-evening follow-up experiment; we
    prioritised the agentic layer instead."*
 
 ### Q. Why `max_depth=10`?
 
 Shallow enough to avoid overfitting 100K+ rows, deep enough to capture feature interactions like *young + long lead + prior miss*. Empirically, test accuracy plateaus around depth 10 and falls past depth 15 due to overfitting. It's also what the original exploration notebook converged on.
 
-### Q. What is "balanced" vs "unbalanced" data, and why didn't you use `class_weight='balanced'`?
+### Q. What is balanced vs unbalanced data? (Plain English)
 
-**The concept.**
+**Balanced data** = each category has roughly the same number of
+examples.
+> *Example:* a classroom of 50 boys and 50 girls is balanced.
 
-- A dataset is **balanced** when the classes appear in roughly equal
-  proportions — e.g. 50% show-ups and 50% no-shows.
-- A dataset is **unbalanced** (or *imbalanced*) when one class
-  dominates — in our case, **~80% show-ups and ~20% no-shows**.
+**Unbalanced data** = one category is much bigger than the other.
+> *Example:* a classroom of 80 boys and 20 girls is unbalanced.
 
-**Why imbalance is a problem.**
+**Our dataset is unbalanced.** Out of every 100 patients:
 
-A classifier trained on imbalanced data has an easy cheat: always
-predict the majority class. On our dataset, a model that predicts
-"patient will show up" for every single row gets 80% accuracy without
-learning anything. It has **zero useful recall** on the minority
-(no-show) class — which is the only class the clinic cares about.
+- **80 show up** to their appointment.
+- **20 miss** their appointment.
 
-**Three standard fixes.**
+So *"show up"* is the big group, *"no-show"* is the small group.
 
-1. **`class_weight='balanced'`** — a scikit-learn one-liner. During
-   training it inversely weights each class by its frequency, so the
-   model pays ~4× more attention to each no-show than to each
-   show-up.
-2. **Over/under-sampling** — duplicate minority rows (SMOTE) or drop
-   majority rows so the training set becomes balanced.
-3. **Threshold calibration** — train normally and then choose the
-   decision threshold explicitly (e.g. "call the patient if
-   probability > 0.55").
+### Q. Why is unbalanced data a problem?
 
-**Why we chose option 3 (threshold calibration) over `class_weight`.**
+Because an un-careful model learns a cheap trick:
 
-- We never use `predict()` (hard class). We always use
-  `predict_proba()` (probability), because the downstream UI and
-  agent consume the *tier* (LOW/MEDIUM/HIGH), not the class.
-- The tier thresholds (0.30 and 0.55) are already our calibration knob,
-  and they are *deliberately aligned* with the outreach guidelines in
-  `attendance_management.md`. Adding `class_weight='balanced'` would
-  shift those probabilities and we'd have to re-calibrate the
-  thresholds anyway.
-- We report minority-class metrics (precision, recall, F1 on the
-  no-show class) alongside accuracy so the imbalance is never hidden.
+> *"I'll predict 'show up' for every patient. I'll be right 80 % of
+> the time — 80 % accuracy!"*
 
-**Honest caveat.** If the grader pushes on this: it's a one-line
-change and we'd run both side-by-side as a follow-up experiment. The
-likely outcome is higher recall at the cost of lower precision —
-useful if the clinic prefers to over-call rather than miss true
-no-shows.
+On paper that model looks great. In real life it is **useless** —
+it never correctly identifies any no-shows, and catching no-shows is
+the whole point. The model has to work harder than *"always say the
+big group"*.
+
+### Q. What are the three standard fixes for unbalanced data?
+
+**Fix 1 — Oversampling.**
+Make the small group bigger by **copying its rows**. Take the 20
+no-show rows in our data and duplicate them until there are 80. Now
+both groups have 80 examples each and the model sees both equally.
+A smarter version called **SMOTE** creates slightly modified
+synthetic copies instead of exact duplicates, but the idea is the
+same: boost the small group by adding more examples of it.
+
+**Fix 2 — `class_weight='balanced'`.**
+Tell the model *"pay extra attention to the small group."*
+
+> Think of a teacher grading an exam. Normally each question is
+> worth 1 point. For the really important topics the teacher says
+> *"this question is worth 4 points."* The student pays extra
+> attention to those. `class_weight='balanced'` does the same —
+> when the model makes a mistake on a no-show it is penalised 4×
+> harder, so it learns to not miss them.
+
+**Fix 3 — Threshold calibration.** *(This is what we used.)*
+Remember the Decision Tree gives a number between 0 and 1. The
+**default** rule in scikit-learn is *"if that number is above 0.50,
+predict no-show; below, predict show-up."* So 0.50 is the default
+threshold.
+
+Threshold calibration means **picking a different threshold** that
+works better for our situation. Instead of one cut-off at 0.50, we
+use **two** cut-offs — 0.30 and 0.55 — which gives us three action
+levels (LOW, MEDIUM, HIGH) instead of a yes/no.
+
+### Q. Why did we pick threshold calibration (Fix 3) over the other two?
+
+Because the clinic doesn't want a yes/no answer. They want **three
+different actions** depending on how worried they should be:
+
+- LOW worry → just send an SMS.
+- MEDIUM worry → SMS + maybe a courtesy call.
+- HIGH worry → pick up the phone.
+
+A single yes/no classifier (which is what `class_weight='balanced'`
+or oversampling would give us) can't produce three tiers. Our two
+thresholds can. The thresholds also line up exactly with what
+`attendance_management.md` says to do at each risk level.
+
+### Q. Short answer for the viva
+
+> *"Our data is unbalanced — 80 % show up, 20 % don't. We didn't
+> fix it with `class_weight='balanced'` or oversampling, because
+> those give a yes/no answer. Instead we used threshold calibration
+> — we picked two cut-offs, 0.30 and 0.55, that map the model's
+> probability to three action levels (LOW, MEDIUM, HIGH) matching
+> the clinic's outreach protocol."*
+
+If they push further: *"class_weight is a one-line change and we'd
+run it as a follow-up experiment."*
 
 ### Q. What features did you use?
 
