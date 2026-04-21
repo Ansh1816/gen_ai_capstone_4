@@ -46,16 +46,281 @@ Four layers top-to-bottom:
 
 External: Groq Cloud Llama 3.1 8B for LLM calls, fpdf2 for PDF export.
 
-### Q. What happens when a user clicks "Run Full Care Workflow"?
+---
 
-1. The Streamlit button calls `agent.run_agent(patient_data)`.
-2. LangGraph invokes **risk_assessment** — Decision Tree outputs a probability; thresholds at 0.30 and 0.55 map it to LOW / MEDIUM / HIGH.
-3. **risk_reasoning** — an LLM call explains the patient's specific risk drivers.
-4. **guideline_retrieval** — similarity search over ChromaDB returns the top-5 chunks, each tagged with its filename.
-5. **intervention_plan** — the LLM, fed the Step-2 analysis and the Step-3 excerpts, produces a numbered plan with source tags.
-6. **report_generation** — a final LLM pass compiles the full structured report with a disclaimer.
+### 1.1 · End-to-end request flows (sequential)
 
-The Streamlit UI then renders each step in an expandable card so the grader can see the reasoning at every stage.
+This subsection traces **exactly what happens** from button-click to
+rendered result for every distinct user action. If the professor asks
+*"walk me through what happens when the user does X"*, these are the
+answers.
+
+---
+
+#### Flow A — User clicks "Analyse Appointment Risk" (Tab 1, Single Patient)
+
+1. **User fills the form** in the left column — age slider, gender
+   dropdown, lead-time slider, SMS toggle, hypertension / diabetes /
+   scholarship toggles, disability-level dropdown, previous-no-shows
+   slider. Values live in Streamlit's session state.
+2. **User clicks `Analyse Appointment Risk`** (`app.py`, the `analyse`
+   button). Streamlit reruns the whole script.
+3. The `if analyse:` block calls **`predict_prob(...)`**.
+4. **`predict_prob()`** (in `app.py`, line ~596):
+   - Builds a one-row Python dict — age, lead time, booleans cast to
+     0/1, one-hot for disability level (`Handicap_0…4`), one-hot for
+     gender (`Gender_F`, `Gender_M`).
+   - Wraps it in a pandas DataFrame with one row.
+   - Adds any missing feature columns as zeros and reorders to match
+     `feature_cols.pkl` (the training-time column order).
+   - Applies the fitted **StandardScaler** (`scaler.pkl`) —
+     `scaler.transform(df_row)`.
+   - Calls **`model.predict_proba(scaled)[0][1]`** — the Decision Tree
+     (`model.pkl`) returns the probability of the "no-show" class.
+   - Returns that float.
+5. The result is stored in `st.session_state.result`.
+6. Streamlit reruns the right column. It passes the probability to:
+   - **`risk_tier(prob)`** — `if < 0.30: LOW · elif < 0.55: MEDIUM · else: HIGH`.
+   - **`rec_action(prob)`** — returns the hardcoded primary action
+     (Standard Confirm / Send SMS Reminder / Call Patient Now).
+7. Five cards render in the right column:
+   - **Patient Snapshot** (KPI row).
+   - **Risk Analysis** (big coloured percentage + three-zone gradient bar).
+   - **AI Recommendation** (action + reason + next step).
+   - **Scenario Simulation** (what-if sliders that re-run `predict_prob`).
+   - **Hospital Policy References** (hardcoded list — static in this tab).
+8. A `st.download_button` lets the user export a plain-text patient
+   action plan.
+
+**No LLM call, no RAG, no agent.** This tab is pure ML.
+
+---
+
+#### Flow B — User uploads CSV (Tab 2, Batch Analysis)
+
+1. **User drops a CSV** into the file uploader. Streamlit reruns with
+   `uploaded` set to a file-like object.
+2. **`df_raw = pd.read_csv(uploaded)`** reads the CSV.
+3. **`preprocess_batch(df_raw)`** (`app.py`, line ~646) runs the full
+   training-time preprocessing:
+   1. **Schema check** — required columns:
+      `{PatientId, Gender, Age, Hipertension, Diabetes, Scholarship,
+      SMS_received, Handcap, ScheduledDay, AppointmentDay, No-show}`.
+      If any are missing, a red error renders and the flow stops.
+   2. **Target encoding** — `No-show` "No"/"Yes" → 0/1.
+   3. **Disability one-hot** — `Handcap` → `Handicap_0…4`.
+   4. **Age filter** — drops rows with `Age < 0` or `Age > 100`.
+   5. **Date parsing** — `ScheduledDay` and `AppointmentDay` to datetime.
+   6. **Derived feature `AwaitingTime`** —
+      `|AppointmentDay − ScheduledDay|` in days.
+   7. **Derived feature `Num_App_Missed`** — groupby-PatientId,
+      sort by AppointmentDay, `.shift().fillna(0).cumsum()` to count
+      prior no-shows without leaking the current row's label.
+   8. **Feature matrix X** — 13 base columns, one-hot gender.
+   9. **Column alignment + scaling** — pad missing columns, reorder to
+      `feature_cols`, apply `scaler.transform(X)`.
+   10. Returns `(X_scaled, row_indices)`.
+4. **`model.predict_proba(X_scaled)[:,1]`** — vectorised Decision Tree
+   inference across every row.
+5. Probabilities attached to `df_out` as `"No-Show Probability (%)"`
+   and mapped to `"Risk Tier"` via the same 0.30 / 0.55 thresholds.
+6. KPIs computed:
+   - `n_total`, `n_high`, `n_medium`
+   - `est_miss = round(probs.mean() * n_total)` — expected-value
+     estimate
+   - `standby = round(n_high * 0.5)` — suggested overbooking slots
+7. The right side of the tab renders:
+   - Four KPI cards (total / high-risk / estimated no-shows / standby).
+   - **Plotly bar chart** of risk-tier distribution.
+   - **Operational Actions** panel mapping each tier to a recommended
+     outreach action with headcounts.
+   - **High-Risk Patient List** data-frame (sortable).
+   - `st.download_button` → `batch_risk_report_YYYYMMDD_HHMM.csv`.
+
+**Still no LLM, no RAG.** Same Decision Tree, vectorised across the CSV.
+
+---
+
+#### Flow C — User types a message in the AI Care Coordinator chat
+
+1. **User types** into `st.chat_input`. Streamlit rerun.
+2. The `if prompt:` block appends the user message to
+   `st.session_state.messages` and displays it.
+3. The session's **LangGraph ReAct agent** is invoked:
+   `st.session_state.chat_agent.invoke({"messages": lc_messages})`
+4. **The ReAct loop** (inside `chatbot_agent.py`):
+   1. The first LLM call goes to **Groq Cloud**
+      (`llama-3.1-8b-instant`, temp 0.3). The LLM receives the
+      **hardened system prompt** (require exact %, require source
+      citations, refuse hallucinated policies, append disclaimer) plus
+      the full conversation history.
+   2. The LLM decides whether to call a tool. It sees two:
+      - **`predict_noshow(age, gender, awaiting_days, sms_sent,
+        hypertension, diabetes, scholarship, disability_level,
+        previous_no_shows)`** → returns `{risk_score, risk_tier}`.
+      - **`search_guidelines(query)`** → returns top-3 excerpts
+        prefixed with `[Source: <filename>]`, or the literal fallback
+        `"No specific guidelines found for this query."` when empty.
+   3. **If the LLM calls `predict_noshow`**:
+      - The Python tool function runs locally.
+      - Builds the 14-feature row, scales, calls
+        `model.predict_proba(...)[0][1]`.
+      - Returns a dict to the LLM as a `ToolMessage`.
+   4. **If the LLM calls `search_guidelines`**:
+      - `_retriever.invoke(query)` runs a similarity search over
+        ChromaDB (k=3).
+      - Each returned document retains `source` metadata — the base
+        filename (e.g. `reminder_policy.md`).
+      - The tool returns `[Source: filename] content ...` for each hit,
+        separated by `---`.
+   5. The LLM receives the tool output, may call another tool, and
+      eventually produces a final natural-language response — with
+      source tags — because the system prompt requires them.
+5. Back in `app.py`:
+   - `final_msg = result["messages"][-1].content` is rendered as the
+     assistant's turn in the chat.
+   - Tool calls are logged in a **"View Agent Logic & Tool Usage"**
+     expander so the grader can inspect them.
+   - The message is appended to `st.session_state.messages`.
+
+**This tab uses both the Decision Tree (as a tool) and the ChromaDB
+vector store (as a tool).** The LLM orchestrates the decisions.
+
+---
+
+#### Flow D — User clicks "Run Full Care Workflow" (Tab 3, the showpiece)
+
+1. **User has filled the patient form** on the left of Tab 3
+   (`ag_age`, `ag_gender`, `ag_awaiting`, `ag_sms`, `ag_hipert`,
+   `ag_diab`, `ag_schol`, `ag_hcap`, `ag_prev`).
+2. **User clicks `Run Full Care Workflow`**. Streamlit rerun.
+3. The `if run_workflow_btn:` block packs the form values into
+   `patient_data`, shows a spinner, and calls
+   **`agent.run_agent(patient_data)`**.
+4. **`run_agent()`** (`agent.py`) builds the initial state:
+   ```python
+   initial_state = {
+       "patient_data": patient_data,
+       "risk_score": 0.0, "risk_tier": "", "risk_color": "",
+       "risk_analysis": "", "risk_factors": [],
+       "retrieved_guidelines": [],
+       "intervention_plan": "", "final_report": "",
+   }
+   ```
+   and invokes `care_coordination_graph.invoke(initial_state)`.
+5. **LangGraph runs five nodes in strict order**:
+
+   **Step 1 — `risk_assessment` (pure Python / ML, no LLM)**
+   - Reads `patient_data` from state.
+   - Builds the 14-feature row exactly as Flow A does.
+   - Applies the persisted `StandardScaler`, calls
+     `model.predict_proba(scaled)[0][1]`.
+   - Maps the probability to a tier: LOW / MEDIUM / HIGH via the 0.30 /
+     0.55 thresholds.
+   - Returns `{"risk_score": prob, "risk_tier": tier, "risk_color": hex}`.
+
+   **Step 2 — `risk_reasoning` (LLM call)**
+   - Uses a `ChatPromptTemplate` with system + human messages. The
+     human message substitutes the patient's actual values
+     (`age=25`, `awaiting=47`, `prev_miss=1`, etc.) and the risk
+     score/tier from Step 1.
+   - Chain: `prompt | llm | StrOutputParser()`.
+   - Produces a structured analysis: a `RISK FACTOR ANALYSIS` bullet
+     list plus an `OVERALL ASSESSMENT` paragraph.
+   - The node also parses the bullet lines and extracts a
+     `risk_factors` list for downstream use.
+   - Returns `{"risk_analysis": analysis, "risk_factors": factors}`.
+
+   **Step 3 — `guideline_retrieval` (RAG, no LLM)**
+   - Builds a query string that combines the tier, the probability,
+     and the top-3 factors from Step 2 — e.g.
+     *"Patient with HIGH risk of appointment no-show. No-show
+     probability 87%. Key factors: 47-day lead time, prior miss,
+     scholarship. What are the recommended intervention strategies and
+     operational guidelines?"*
+   - Calls `_retriever.invoke(query)` — ChromaDB similarity search
+     with **k=5** over the 40-chunk index.
+   - De-duplicates by content and preserves the `source` metadata
+     (filename) for each hit.
+   - Returns `{"retrieved_guidelines": [{"content": ..., "source":
+     "filename.md"}, ...]}`.
+
+   **Step 4 — `intervention_plan` (LLM call, grounded)**
+   - Formats the retrieved guidelines as
+     `[Source: filename]\n<content>` blocks.
+   - If the retrieval list is empty, uses the fallback text
+     *"No specific guidelines retrieved."*
+   - Calls `prompt | llm | StrOutputParser()` with a prompt template
+     that demands a strict structure:
+     - `PRIMARY ACTION` (Call / SMS / Standard)
+     - `INTERVENTION STRATEGIES` (numbered)
+     - `TIMELINE` (pre-appointment hour offsets)
+     - `ESCALATION PROTOCOL`
+     - `EXPECTED OUTCOME`
+   - Returns `{"intervention_plan": plan}`.
+
+   **Step 5 — `report_generation` (LLM call, final format)**
+   - Formats the retrieved guidelines as a one-line-per-source summary.
+   - Calls `prompt | llm | StrOutputParser()` with a final
+     care-coordination-report template that combines the patient
+     summary, risk assessment, factor analysis, intervention plan,
+     sources consulted, and a **mandatory operational-and-ethical
+     disclaimer**.
+   - Returns `{"final_report": report}`.
+
+6. The merged state is returned to `app.py` and stashed in
+   `st.session_state.workflow_result`.
+7. On the next rerun, the right column renders the **STRUCTURED CARE
+   WORKFLOW — 5 STEPS** card. Each node's output becomes an expandable
+   section:
+   - Step 1 — big % and tier badge.
+   - Step 2 — the `risk_analysis` markdown.
+   - Step 3 — source-filename chips plus per-chunk excerpt cards with
+     `[Source: …]` prefixes.
+   - Step 4 — the structured plan.
+   - Step 5 — the final report.
+8. A permanent **Operational & Ethical Notice** card renders below the
+   five steps. A **Clear Workflow Output** button resets the session
+   state.
+
+**Total wall-clock time:** 30–60 s on free-tier Groq (three LLM calls
+are the dominant cost; ML and retrieval are milliseconds).
+
+---
+
+#### Flow E — User clicks "Generate & Download PDF Report"
+
+1. **User clicks the button**. Streamlit rerun.
+2. The handler packs the patient form into `patient_data` and — after
+   the bool-to-`"yes"/"no"` cast — calls
+   **`predict_noshow.invoke(pargs)`** (the LangChain tool wrapper from
+   `chatbot_agent.py`). The tool returns `{"risk_score", "risk_tier"}`.
+3. The handler scans `st.session_state.messages` backwards for the most
+   recent assistant message; that becomes `plan_text`. If there is no
+   chat history, `plan_text` defaults to `"See chat for details."`.
+4. **`create_pdf_report(patient_data, assessment, plan_text)`**
+   (`pdf_generator.py`):
+   1. Constructs a `CareCoordinationPDF` (fpdf2 subclass) with a header
+      (title + timestamp) and a footer (page numbers).
+   2. Writes the **Patient Summary** section — age, gender, lead time,
+      SMS, conditions, disability level, prior no-shows.
+   3. Writes the **Risk Assessment** — colour-coded tier label
+      (green / amber / red) and the probability percentage.
+   4. Writes the **Analysis & Intervention Plan** — the `plan_text`
+      encoded to latin-1 with a `'replace'` fallback for non-ASCII
+      characters.
+   5. Writes the **Ethical Disclaimer** section.
+   6. Returns the file path to the saved PDF.
+5. The handler reads the file bytes back and exposes a
+   **`st.download_button`** — clicking it triggers the browser to
+   download `care_report_YYYYMMDD_HHMM.pdf`.
+
+**This flow is deliberately lightweight** — it does *not* re-run the
+5-step workflow. It reuses whatever's already in the chat as the plan
+body. For a full grounded report, the user should run the structured
+workflow first (Flow D).
+
+---
 
 ### Q. Why two agents instead of one?
 
