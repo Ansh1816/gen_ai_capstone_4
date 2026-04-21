@@ -1,0 +1,134 @@
+/*
+ * System architecture of the Intelligent Appointment No-Show Prediction
+ * and Agentic Care Coordination Assistant.
+ *
+ * Render:  dot -Tpng fig_architecture.dot -o fig_architecture.png
+ *          dot -Tsvg fig_architecture.dot -o fig_architecture.svg
+ */
+digraph Architecture {
+    graph [
+        rankdir=TB,
+        splines=true,
+        nodesep=0.5,
+        ranksep=0.85,
+        bgcolor=white,
+        fontname="Helvetica",
+        fontsize=11,
+        pad=0.4,
+        dpi=200,
+        compound=true
+    ];
+    node  [fontname="Helvetica", fontsize=11, style="rounded,filled", penwidth=1.6, margin="0.2,0.15"];
+    edge  [fontname="Helvetica", fontsize=9, color="#334155", penwidth=1.3];
+
+    // ── User ─────────────────────────────────────────────────────────
+    user [shape=box, style="filled,rounded", fillcolor="#F3F4F6", color="#374151", fontcolor="#111827",
+          label="Clinic Operations Staff", width=2.4];
+
+    // ── UI LAYER ────────────────────────────────────────────────────
+    subgraph cluster_ui {
+        label="Streamlit UI  —  app.py";
+        labeljust="l"; labelloc="t"; fontsize=12; fontname="Helvetica-Bold";
+        style="rounded,dashed,filled"; fillcolor="#EFF6FF"; color="#1E40AF";
+        t1 [shape=box, fillcolor="#DBEAFE", color="#1E40AF", fontcolor="#1E3A8A",
+            label=<<b>Tab 1</b><br/>Single Patient Analysis>];
+        t2 [shape=box, fillcolor="#DBEAFE", color="#1E40AF", fontcolor="#1E3A8A",
+            label=<<b>Tab 2</b><br/>Batch Analysis>];
+        t3 [shape=box, fillcolor="#DBEAFE", color="#1E40AF", fontcolor="#1E3A8A",
+            label=<<b>Tab 3</b><br/>AI Care Coordinator>];
+    }
+
+    // ── ML LAYER ────────────────────────────────────────────────────
+    subgraph cluster_ml {
+        label="ML Prediction Layer  —  model_brain.py";
+        labeljust="l"; labelloc="t"; fontsize=12; fontname="Helvetica-Bold";
+        style="rounded,dashed,filled"; fillcolor="#FFF7ED"; color="#C2410C";
+        feats  [shape=box, fillcolor="#FED7AA", color="#C2410C", fontcolor="#7C2D12",
+                label=<<b>14 features</b><br/>feature_cols.pkl>];
+        scaler [shape=box, fillcolor="#FED7AA", color="#C2410C", fontcolor="#7C2D12",
+                label=<<b>StandardScaler</b><br/>scaler.pkl>];
+        model  [shape=box, fillcolor="#FED7AA", color="#C2410C", fontcolor="#7C2D12",
+                label=<<b>DecisionTreeClassifier</b><br/>max_depth=10<br/>model.pkl>];
+        feats  -> scaler [style=dashed, arrowhead=none];
+        scaler -> model  [style=dashed, arrowhead=none];
+    }
+
+    // ── AGENT LAYER ─────────────────────────────────────────────────
+    subgraph cluster_agents {
+        label="Agentic Layer  —  LangGraph";
+        labeljust="l"; labelloc="t"; fontsize=12; fontname="Helvetica-Bold";
+        style="rounded,dashed,filled"; fillcolor="#FEF2F2"; color="#B91C1C";
+
+        // 5-step StateGraph
+        subgraph cluster_stategraph {
+            label="5-Step StateGraph  (agent.py)";
+            labeljust="l"; labelloc="t"; fontsize=11; fontname="Helvetica-Bold";
+            style="rounded,filled"; fillcolor="#FFF1F1"; color="#B91C1C";
+            s1 [shape=box, fillcolor="#FECACA", color="#B91C1C", fontcolor="#7F1D1D",
+                label=<<b>1 · risk_assessment</b><br/><i>ML</i>>];
+            s2 [shape=box, fillcolor="#FECACA", color="#B91C1C", fontcolor="#7F1D1D",
+                label=<<b>2 · risk_reasoning</b><br/><i>LLM</i>>];
+            s3 [shape=box, fillcolor="#FECACA", color="#B91C1C", fontcolor="#7F1D1D",
+                label=<<b>3 · guideline_retrieval</b><br/><i>RAG</i>>];
+            s4 [shape=box, fillcolor="#FECACA", color="#B91C1C", fontcolor="#7F1D1D",
+                label=<<b>4 · intervention_plan</b><br/><i>LLM</i>>];
+            s5 [shape=box, fillcolor="#FECACA", color="#B91C1C", fontcolor="#7F1D1D",
+                label=<<b>5 · report_generation</b><br/><i>LLM</i>>];
+            s1 -> s2 -> s3 -> s4 -> s5 [color="#B91C1C", penwidth=1.8];
+        }
+
+        // ReAct agent
+        react [shape=box, fillcolor="#FEE2E2", color="#B91C1C", fontcolor="#7F1D1D",
+               label=<<b>ReAct Agent</b>  (chatbot_agent.py)<br/>Tools: predict_noshow · search_guidelines>];
+    }
+
+    // ── RAG LAYER ───────────────────────────────────────────────────
+    subgraph cluster_rag {
+        label="RAG Layer";
+        labeljust="l"; labelloc="t"; fontsize=12; fontname="Helvetica-Bold";
+        style="rounded,dashed,filled"; fillcolor="#F0FDF4"; color="#15803D";
+        docs   [shape=folder, fillcolor="#BBF7D0", color="#15803D", fontcolor="#14532D",
+                label=<<b>guidelines/*.md</b><br/>5 policy documents>];
+        build  [shape=box,    fillcolor="#BBF7D0", color="#15803D", fontcolor="#14532D",
+                label=<<b>build_vectorstore.py</b><br/>RecursiveCharacterTextSplitter<br/>chunk=500 · overlap=80>];
+        embed  [shape=box,    fillcolor="#BBF7D0", color="#15803D", fontcolor="#14532D",
+                label=<<b>all-MiniLM-L6-v2</b><br/>384-d embeddings>];
+        chroma [shape=cylinder, fillcolor="#86EFAC", color="#15803D", fontcolor="#14532D",
+                label=<<b>ChromaDB</b><br/>40 chunks · persisted>];
+        docs  -> build  [label="chunk"];
+        build -> embed  [label="embed"];
+        embed -> chroma [label="persist"];
+    }
+
+    // ── EXTERNAL + OUTPUT ───────────────────────────────────────────
+    llm [shape=box3d, fillcolor="#E9D5FF", color="#7E22CE", fontcolor="#581C87",
+         label=<<b>Groq Cloud</b><br/>llama-3.1-8b-instant<br/><i>(free tier)</i>>];
+    pdf [shape=note, fillcolor="#FEF3C7", color="#B45309", fontcolor="#78350F",
+         label=<<b>Structured PDF Report</b><br/>pdf_generator.py · fpdf2>];
+
+    // ── EDGES ───────────────────────────────────────────────────────
+    user -> t1 [arrowhead=vee];
+    user -> t2 [arrowhead=vee];
+    user -> t3 [arrowhead=vee];
+
+    t1 -> model [color="#1E40AF", lhead=cluster_ml];
+    t2 -> model [color="#1E40AF", lhead=cluster_ml];
+    t3 -> s1    [color="#1E40AF", lhead=cluster_stategraph, label="Run Full Care\nWorkflow"];
+    t3 -> react [color="#1E40AF", label="Chat"];
+
+    // StateGraph step wiring
+    s1 -> model  [style=dashed, color="#C2410C", lhead=cluster_ml, label="predict"];
+    s3 -> chroma [style=dashed, color="#15803D", lhead=cluster_rag, label="retrieve"];
+    s2 -> llm    [style=dashed, color="#7E22CE"];
+    s4 -> llm    [style=dashed, color="#7E22CE"];
+    s5 -> llm    [style=dashed, color="#7E22CE"];
+
+    // ReAct tool calls
+    react -> model  [style=dashed, color="#C2410C", label="tool"];
+    react -> chroma [style=dashed, color="#15803D", label="tool"];
+    react -> llm    [style=dashed, color="#7E22CE", label="reason"];
+
+    // Output
+    s5 -> pdf [color="#B45309"];
+    t3 -> pdf [color="#B45309", label="Generate &\nDownload PDF"];
+}
