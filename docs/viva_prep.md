@@ -266,6 +266,24 @@ three different actions.
 We didn't invent them — they come straight from the outreach protocol
 in `attendance_management.md`.
 
+### Q. What are the diamond shapes in the architecture diagram? Are they conditional statements?
+
+**Yes — a diamond is always a decision point**, the flowchart drawing
+convention for an `if ... else ...`. Nothing more.
+
+Our diagram has two diamonds, both inside the 5-step workflow:
+
+| Diamond | Asks | If **YES** | If **NO** |
+|---|---|---|---|
+| `retrieval empty?` | Did ChromaDB return zero matching documents? | Refuse — tell the user *"no matching policy"* | Continue to `intervention_plan` |
+| `carries Source tag?` | Did the LLM's plan include `[Source: filename]` citations? | Continue to `report_generation` | Loop back and re-ask the LLM |
+
+The first gate is a real Python `if` inside the `search_guidelines`
+tool. The second gate is currently enforced by the **hardened system
+prompt** (the LLM is told *"every policy claim must carry a Source
+tag"*) rather than a separate post-generation check — the dashed
+back-arrow in the diagram shows where a future hard check would loop.
+
 ### Q. If the Decision Tree already gives a risk number, why do we need the `risk_tier` gate?
 
 The Decision Tree gives us a **continuous probability** — a number
@@ -640,21 +658,85 @@ held-out query-to-chunk labelled set (hit@k, nDCG) is future work.
 
 ---
 
-## 4 · LangGraph
+## 4 · LangChain & LangGraph
 
-### Q. What is LangGraph and why did you use it?
+### Q. What is LangChain vs LangGraph? How are they related?
 
-LangGraph is a framework for building **stateful, graph-based** agent
-workflows on top of LangChain. You define nodes (Python functions), edges
-(transitions), and a shared **state** object that each node reads from
-and writes to.
+**Short version.**
 
-We used it because:
-1. **Explicit state** — the `AgentState` `TypedDict` is a clear contract between nodes. No hidden globals.
-2. **Determinism** — nodes fire in declared order. For an auditable medical-operations system, that's essential.
-3. **Introspection** — we can expose each intermediate state to the UI, which is exactly what the *Run Full Care Workflow* button does.
+- **LangChain** = a *big toolkit* for building LLM apps. It contains
+  reusable pieces — prompt templates, LLM wrappers, memory, retrievers,
+  tools, output parsers.
+- **LangGraph** = **one specific tool** inside that toolkit, built for
+  *stateful graph workflows* (nodes, edges, shared state).
 
-### Q. What's `AgentState`?
+**Analogy.** LangChain is a hardware store full of tools. LangGraph is
+one specific power-tool in that store — the one you reach for when
+you need to build a multi-step, stateful agent.
+
+### Q. How does LangChain "connect" things automatically?
+
+LangChain uses a **pipe operator `|`** — similar to a Unix pipe or a
+factory assembly line. Example:
+
+```python
+chain = prompt | llm | parser
+```
+
+Read as: *"take the prompt, send it to the LLM, then parse the
+result."* The output of each step becomes the input of the next —
+automatically. You don't have to write any wiring code.
+
+We actually use these LangChain pipes **inside each LangGraph node**.
+The `risk_reasoning` node contains:
+
+```python
+chain = _risk_reasoning_prompt | llm | StrOutputParser()
+analysis = chain.invoke(inputs)
+```
+
+So LangChain pipes handle the short sequences inside one node;
+LangGraph handles the overall graph of nodes.
+
+### Q. How does LangGraph connect things?
+
+LangGraph is the opposite of automatic — you **declare** every node
+and every edge explicitly:
+
+```python
+graph = StateGraph(AgentState)
+
+graph.add_node("risk_assessment",     risk_assessment)
+graph.add_node("risk_reasoning",      risk_reasoning)
+graph.add_node("guideline_retrieval", guideline_retrieval)
+graph.add_node("intervention_plan",   intervention_plan)
+graph.add_node("report_generation",   report_generation)
+
+graph.set_entry_point("risk_assessment")
+graph.add_edge("risk_assessment",     "risk_reasoning")
+graph.add_edge("risk_reasoning",      "guideline_retrieval")
+graph.add_edge("guideline_retrieval", "intervention_plan")
+graph.add_edge("intervention_plan",   "report_generation")
+graph.add_edge("report_generation",   END)
+```
+
+That's it — five nodes, five edges. The graph runs them in the declared
+order and passes the shared `AgentState` through each one.
+
+### Q. When do you use LangChain's pipe vs LangGraph?
+
+| Use LangChain's `\|` when... | Use LangGraph when... |
+|---|---|
+| Short, straight sequence | Many steps with shared state |
+| No state to carry between steps | Need a `TypedDict` of data flowing across nodes |
+| No branches or loops | May need branches / loops / guardrails |
+| Inside a single LLM call | Across a whole multi-step workflow |
+
+We use **both together.** LangChain pipes handle the "prompt →
+LLM → parser" inside each node; LangGraph handles the overall 5-step
+workflow.
+
+### Q. What is `AgentState`?
 
 A `TypedDict` carrying the shared memory across nodes:
 
@@ -671,14 +753,89 @@ class AgentState(TypedDict):
     final_report: str
 ```
 
-Each node returns a *partial* dict; LangGraph merges it into the state.
+Every node reads from this dict and returns a *partial* dict. LangGraph
+merges the partial into the shared state and hands it to the next node.
 
 ### Q. What's the difference between StateGraph and `create_react_agent`?
 
-- **StateGraph** — you declare the DAG yourself. Good for deterministic, multi-step pipelines.
-- **`create_react_agent`** — a prebuilt ReAct loop (Reasoning + Acting). The agent picks which tool to call based on the user's message, loops until it has an answer. Good for open-ended chat.
+Both are LangGraph. They differ in control flow:
 
-We use both: StateGraph for the 5-step care report, ReAct for the chat tab.
+- **StateGraph** — you declare the graph yourself. Deterministic,
+  multi-step, auditable. We use it for the 5-step care report.
+- **`create_react_agent`** — a prebuilt loop (Reasoning + Acting). The
+  agent picks which tool to call based on the user's message, loops
+  until it has an answer. We use it for the chat tab.
+
+---
+
+### Q. What does "linear" mean in this context?
+
+**Linear** = **one straight line, step by step, no branches.**
+
+Think of climbing stairs — you step on stair 1, then 2, then 3, and
+so on. You can't skip stairs and you can't climb two at the same
+time. One after another.
+
+Our workflow is linear:
+
+```
+Step 1  →  Step 2  →  Step 3  →  Step 4  →  Step 5  →  END
+```
+
+**Non-linear** would be branches, loops, or parallel paths — like a
+road junction where you can turn left, turn right, or go straight.
+
+### Q. Why is your 5-step workflow linear?
+
+Because every step **needs the previous step's output**. You can't
+reorder or skip any of them:
+
+| Step | Produces | Needed by |
+|---|---|---|
+| 1 · risk_assessment      | Probability + tier | Step 2 (to reason about it) |
+| 2 · risk_reasoning       | Risk factor list   | Step 3 (to build the search query) |
+| 3 · guideline_retrieval  | Policy excerpts    | Step 4 (to ground the plan) |
+| 4 · intervention_plan    | Structured plan    | Step 5 (to include in the report) |
+| 5 · report_generation    | Final report       | End of workflow |
+
+The order is forced by the **data flow**, not by a stylistic choice.
+
+### Q. Could you have made it non-linear?
+
+Yes — three realistic alternatives:
+
+1. **Parallel.** Run Step 2 (risk_reasoning) and Step 3
+   (guideline_retrieval) at the same time. Step 3 only needs the
+   *tier* from Step 1, not the Step-2 reasoning, so they don't have
+   to wait for each other. Faster but more complex to coordinate.
+2. **Conditional branch.** Skip Step 4 entirely if the patient is
+   LOW risk — there's no intervention worth planning. Saves an LLM
+   call but breaks the *"every patient goes through the same five
+   steps"* auditability.
+3. **Loop.** If Step 4's plan doesn't carry citations, loop back and
+   re-ask. The dashed arrow from the `carries Source tag?` diamond
+   represents this — currently enforced by the system prompt rather
+   than a hard code branch.
+
+### Q. Why did you choose linear over the non-linear alternatives?
+
+1. **Auditability.** Every patient's record goes through the same
+   five steps. Easy to verify for compliance.
+2. **Simplicity.** Easier to debug, easier to explain in the report
+   and the viva.
+3. **Rubric alignment.** The brief calls out *"multi-step planning"*
+   explicitly. Linear steps demonstrate that more clearly than hidden
+   branches.
+
+### Q. Why did you use LangGraph at all?
+
+1. **Explicit state** — the `AgentState` `TypedDict` is a clear
+   contract between nodes. No hidden globals.
+2. **Determinism** — nodes fire in declared order. Essential for an
+   auditable medical-operations system.
+3. **Introspection** — we can expose each intermediate state to the
+   UI, which is exactly what the *Run Full Care Workflow* button does
+   (every step shown in its own expandable card).
 
 ---
 
